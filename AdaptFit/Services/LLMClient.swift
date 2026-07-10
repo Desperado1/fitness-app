@@ -32,6 +32,15 @@ enum LLMProvider: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+struct LLMMessage: Codable {
+    let role: String
+    let content: String
+
+    static func system(_ content: String) -> LLMMessage { .init(role: "system", content: content) }
+    static func user(_ content: String) -> LLMMessage { .init(role: "user", content: content) }
+    static func assistant(_ content: String) -> LLMMessage { .init(role: "assistant", content: content) }
+}
+
 enum LLMError: LocalizedError {
     case missingAPIKey
     case httpError(status: Int, body: String)
@@ -47,7 +56,7 @@ enum LLMError: LocalizedError {
         case .emptyResponse:
             return "The AI service returned an empty response. Please try again."
         case .invalidJSON:
-            return "Couldn't read the generated workout. Please try again."
+            return "Couldn't read the coach's response. Please try again."
         }
     }
 }
@@ -58,9 +67,15 @@ struct LLMClient {
     var modelOverride: String
     var apiKey: String
 
-    private struct ChatMessage: Codable {
-        let role: String
-        let content: String
+    /// Builds a client from the app's stored settings.
+    static func fromSettings() -> LLMClient {
+        let providerRaw = UserDefaults.standard.string(forKey: "llmProvider") ?? ""
+        let modelOverride = UserDefaults.standard.string(forKey: "llmModelOverride") ?? ""
+        return LLMClient(
+            provider: LLMProvider(rawValue: providerRaw) ?? .deepseek,
+            modelOverride: modelOverride,
+            apiKey: KeychainStore.read(KeychainStore.apiKeyAccount)
+        )
     }
 
     private struct ResponseFormat: Encodable {
@@ -69,7 +84,7 @@ struct LLMClient {
 
     private struct ChatRequest: Encodable {
         let model: String
-        let messages: [ChatMessage]
+        let messages: [LLMMessage]
         let temperature: Double
         let max_tokens: Int
         let response_format: ResponseFormat
@@ -83,8 +98,9 @@ struct LLMClient {
         let choices: [Choice]
     }
 
-    /// Sends a system + user prompt and returns the raw text of the reply.
-    func complete(system: String, user: String) async throws -> String {
+    /// Sends a full message list and returns the raw text of the reply.
+    /// Every coach role returns JSON, so JSON mode is always requested.
+    func complete(messages: [LLMMessage], maxTokens: Int = 4096) async throws -> String {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { throw LLMError.missingAPIKey }
 
@@ -94,17 +110,14 @@ struct LLMClient {
 
         var request = URLRequest(url: provider.chatCompletionsURL)
         request.httpMethod = "POST"
-        request.timeoutInterval = 120
+        request.timeoutInterval = 180
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder().encode(ChatRequest(
             model: model,
-            messages: [
-                ChatMessage(role: "system", content: system),
-                ChatMessage(role: "user", content: user),
-            ],
+            messages: messages,
             temperature: 0.7,
-            max_tokens: 2048,
+            max_tokens: maxTokens,
             response_format: ResponseFormat(type: "json_object")
         ))
 
@@ -122,5 +135,10 @@ struct LLMClient {
             throw LLMError.emptyResponse
         }
         return content
+    }
+
+    /// Convenience for single-turn system + user calls.
+    func complete(system: String, user: String, maxTokens: Int = 4096) async throws -> String {
+        try await complete(messages: [.system(system), .user(user)], maxTokens: maxTokens)
     }
 }

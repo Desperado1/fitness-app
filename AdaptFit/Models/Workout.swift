@@ -110,6 +110,17 @@ struct ExerciseResult: Codable, Hashable, Identifiable {
         self.restSeconds = prescribed.restSeconds
         self.notes = prescribed.notes
     }
+
+    var prescription: PrescribedExercise {
+        PrescribedExercise(
+            name: name,
+            sets: prescribedSets,
+            reps: prescribedReps,
+            weight: prescribedWeight,
+            restSeconds: restSeconds,
+            notes: notes
+        )
+    }
 }
 
 /// What the user told us before the workout was generated.
@@ -200,6 +211,22 @@ final class Workout {
             }
             return result
         }
+    }
+
+    /// The current prescription in the LLM JSON contract shape —
+    /// used as chat context so the coach sees its own latest edits.
+    var asGenerated: GeneratedWorkout {
+        GeneratedWorkout(
+            title: title,
+            style: styleRaw,
+            intensity: intensityRaw,
+            durationMinutes: durationMinutes,
+            warmup: warmup,
+            exercises: exercises.map(\.prescription),
+            cooldown: cooldown,
+            coachNote: coachNote,
+            safetyNote: safetyNote
+        )
     }
 
     var feedbackEmoji: String? {
