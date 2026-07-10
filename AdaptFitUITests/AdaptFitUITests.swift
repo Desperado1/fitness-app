@@ -136,7 +136,12 @@ final class AdaptFitUITests: XCTestCase {
         tapTab("Settings")
         snap("11-settings")
 
-        app.buttons["Coach's Notes"].tap()
+        // NavigationLink rows aren't always exposed as buttons — match any
+        // element type and tap by coordinate.
+        let notesRow = app.descendants(matching: .any)["Coach's Notes"].firstMatch
+        XCTAssertTrue(notesRow.waitForExistence(timeout: 10), "Coach's Notes row should exist in Settings")
+        notesRow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+
         let rebuildButton = app.buttons["Rebuild from history"]
         XCTAssertTrue(rebuildButton.waitForExistence(timeout: 10), "Coach's Notes should open")
         // Give the background scribe a moment to update pages.
@@ -145,7 +150,10 @@ final class AdaptFitUITests: XCTestCase {
         ).firstMatch.waitForExistence(timeout: 10)
         snap("12-coach-notes")
 
-        app.staticTexts["Coach's Log"].firstMatch.tap()
+        let logRow = app.staticTexts["Coach's Log"].firstMatch
+        if logRow.waitForExistence(timeout: 5) {
+            logRow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
         snap("13-coach-log-page")
     }
 }
