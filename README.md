@@ -54,6 +54,31 @@ The UI tests launch the app with `-mock-llm` (canned coach responses from `MockL
 
 Note: macOS runners consume GitHub's free minutes at a 10× multiplier on private repos (~200 macOS-minutes/month on the free tier; one run takes ~15). Making the repo public removes the cap.
 
+## Install on your iPhone (AltStore, no Mac needed)
+
+The **Build IPA** workflow produces an unsigned `AdaptFit.ipa`; [AltStore](https://altstore.io) signs and installs it with a free Apple ID from a Windows PC. iPhone must be on iOS 17+.
+
+**One-time PC + iPhone setup**
+
+1. On Windows, install **iTunes** and **iCloud** from Apple's website (not the Microsoft Store versions — AltServer needs the desktop builds).
+2. Install **AltServer** from [altstore.io](https://altstore.io) and run it (tray icon).
+3. Connect the iPhone by USB, then AltServer tray icon → *Install AltStore* → pick the device, and sign in with an Apple ID (a spare one is fine — it's only used for signing).
+4. On the iPhone: Settings → General → **VPN & Device Management** → trust the developer profile. The AltStore app now works.
+
+**Each build you want on the phone**
+
+1. GitHub → Actions → **Build IPA** → *Run workflow* (takes ~5 min).
+2. Download the `AdaptFit-ipa` artifact from the run page and unzip it to get `AdaptFit.ipa`.
+3. Get the `.ipa` onto the phone (email/Drive/whatever), open it with the **AltStore** app → Install. (Or, from the PC: AltServer tray icon → *Sideload .ipa*.)
+4. First launch: set your DeepSeek/Qwen API key in **Settings → AI coach** — the phone build talks to the real provider.
+
+**Living with free signing**
+
+- Apple expires free-signed apps every **7 days**. AltStore refreshes them automatically when the phone is on the same Wi-Fi as a running AltServer — or open AltStore and tap Refresh before the week is up.
+- Free accounts allow max **3** sideloaded apps at a time.
+- App data (profile, workout history, coach's notes, the API key in the Keychain) survives refreshes and reinstalls of the same app; it's lost only if you delete the app.
+- If the trial sticks, the upgrade path is TestFlight via the Apple Developer Program ($99/yr): no PC, no weekly refresh, easy installs for your wife's phone too.
+
 ## Configuring the AI coach
 
 1. Get an API key from [DeepSeek](https://platform.deepseek.com) or [Alibaba Cloud Model Studio (Qwen)](https://modelstudio.console.alibabacloud.com).
