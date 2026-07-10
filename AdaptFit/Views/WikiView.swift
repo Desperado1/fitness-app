@@ -92,7 +92,7 @@ struct WikiView: View {
 
         wiki.ensureSeeded(profile: profile)
         do {
-            let pages = try await CoachService(client: .fromSettings()).rebuildWiki(
+            let pages = try await CoachService.fromSettings().rebuildWiki(
                 profile: profile,
                 historyLines: workouts.map(\.historyLine)
             )

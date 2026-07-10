@@ -86,7 +86,7 @@ struct FeedbackSheet: View {
         Task { @MainActor in
             let wiki = WikiStore(context: context)
             do {
-                let updates = try await CoachService(client: .fromSettings()).scribeUpdates(
+                let updates = try await CoachService.fromSettings().scribeUpdates(
                     wikiContext: wiki.contextString(),
                     workout: workout
                 )

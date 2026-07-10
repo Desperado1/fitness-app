@@ -61,22 +61,42 @@ enum LLMError: LocalizedError {
     }
 }
 
-struct LLMClient {
+/// Anything that can answer a coach prompt. The real client hits
+/// DeepSeek/Qwen; MockLLMClient answers offline for UI tests and demos.
+protocol LLMCompleting {
+    func complete(messages: [LLMMessage], maxTokens: Int) async throws -> String
+}
+
+extension LLMCompleting {
+    func complete(system: String, user: String, maxTokens: Int = 4096) async throws -> String {
+        try await complete(messages: [.system(system), .user(user)], maxTokens: maxTokens)
+    }
+
+    func complete(messages: [LLMMessage]) async throws -> String {
+        try await complete(messages: messages, maxTokens: 4096)
+    }
+}
+
+/// Picks the mock when launched with -mock-llm (UI tests, offline demo),
+/// the real provider client otherwise.
+func makeLLMClient() -> any LLMCompleting {
+    if ProcessInfo.processInfo.arguments.contains("-mock-llm") {
+        return MockLLMClient()
+    }
+    let providerRaw = UserDefaults.standard.string(forKey: "llmProvider") ?? ""
+    let modelOverride = UserDefaults.standard.string(forKey: "llmModelOverride") ?? ""
+    return LLMClient(
+        provider: LLMProvider(rawValue: providerRaw) ?? .deepseek,
+        modelOverride: modelOverride,
+        apiKey: KeychainStore.read(KeychainStore.apiKeyAccount)
+    )
+}
+
+struct LLMClient: LLMCompleting {
     var provider: LLMProvider
     /// Empty string means "use the provider default".
     var modelOverride: String
     var apiKey: String
-
-    /// Builds a client from the app's stored settings.
-    static func fromSettings() -> LLMClient {
-        let providerRaw = UserDefaults.standard.string(forKey: "llmProvider") ?? ""
-        let modelOverride = UserDefaults.standard.string(forKey: "llmModelOverride") ?? ""
-        return LLMClient(
-            provider: LLMProvider(rawValue: providerRaw) ?? .deepseek,
-            modelOverride: modelOverride,
-            apiKey: KeychainStore.read(KeychainStore.apiKeyAccount)
-        )
-    }
 
     private struct ResponseFormat: Encodable {
         let type: String
@@ -135,10 +155,5 @@ struct LLMClient {
             throw LLMError.emptyResponse
         }
         return content
-    }
-
-    /// Convenience for single-turn system + user calls.
-    func complete(system: String, user: String, maxTokens: Int = 4096) async throws -> String {
-        try await complete(messages: [.system(system), .user(user)], maxTokens: maxTokens)
     }
 }

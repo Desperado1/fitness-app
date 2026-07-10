@@ -15,7 +15,12 @@ struct WikiUpdates: Codable {
 /// All LLM roles: weekly Planner, daily Modulator, Chat coach, wiki Scribe,
 /// and wiki Rebuild. Prompt builders are static and pure for testability.
 struct CoachService {
-    let client: LLMClient
+    let client: any LLMCompleting
+
+    /// The coach as configured in Settings (or the mock under -mock-llm).
+    static func fromSettings() -> CoachService {
+        CoachService(client: makeLLMClient())
+    }
 
     // MARK: - Planner
 

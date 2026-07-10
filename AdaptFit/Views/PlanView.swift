@@ -138,7 +138,7 @@ struct PlanView: View {
         let previous = blocks.first
 
         do {
-            let generated = try await CoachService(client: .fromSettings()).planBlock(
+            let generated = try await CoachService.fromSettings().planBlock(
                 profile: profile,
                 wikiContext: wiki.contextString(),
                 lastBlockSummary: previous?.summary

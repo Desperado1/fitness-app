@@ -69,6 +69,7 @@ struct ChatView: View {
                     TextField("Message your coach…", text: $input, axis: .vertical)
                         .lineLimit(1...4)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("chatInput")
                     Button {
                         Task { await send() }
                     } label: {
@@ -76,6 +77,7 @@ struct ChatView: View {
                             .font(.title2)
                     }
                     .disabled(isSending || input.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .accessibilityIdentifier("chatSend")
                 }
                 .padding()
             }
@@ -121,7 +123,7 @@ struct ChatView: View {
 
         let wiki = WikiStore(context: context)
         do {
-            let reply = try await CoachService(client: .fromSettings()).chat(
+            let reply = try await CoachService.fromSettings().chat(
                 profile: profile,
                 wikiContext: wiki.contextString(),
                 workout: workout,

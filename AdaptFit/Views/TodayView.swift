@@ -145,7 +145,7 @@ struct TodayView: View {
         let session = activeBlock?.nextPendingSession
 
         do {
-            let generated = try await CoachService(client: .fromSettings()).generateWorkout(
+            let generated = try await CoachService.fromSettings().generateWorkout(
                 profile: profile,
                 wikiContext: wiki.contextString(),
                 session: session,

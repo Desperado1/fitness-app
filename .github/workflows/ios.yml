@@ -1,0 +1,74 @@
+name: iOS CI
+
+on:
+  push:
+    branches:
+      - claude/ai-workout-app-ios-h15vrm
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build, test, and capture screenshots
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          brew install xcodegen
+          brew install chargepoint/xcparse/xcparse
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build and run tests (unit + UI with screenshots)
+        run: |
+          xcodebuild test \
+            -project AdaptFit.xcodeproj \
+            -scheme AdaptFit \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee xcodebuild.log | grep -E 'Test Case|Test Suite|error:|BUILD|TEST' || true
+          # The grep filter swallows xcodebuild's exit code; check the log for the verdict.
+          grep -q "TEST SUCCEEDED" xcodebuild.log
+
+      - name: Extract screenshots
+        if: always()
+        run: |
+          xcparse screenshots TestResults.xcresult screenshots/ || true
+          ls -R screenshots/ || true
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-screenshots
+          path: screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload full result bundle
+        if: failure()
+        run: zip -rq TestResults.zip TestResults.xcresult || true
+
+      - name: Upload result bundle artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-bundle
+          path: TestResults.zip
+          if-no-files-found: ignore
+          retention-days: 7

@@ -46,6 +46,14 @@ open AdaptFit.xcodeproj
 
 Requirements: Xcode 15+, iOS 17+ target. No third-party Swift dependencies. Run unit tests with ⌘U (`AdaptFitTests`: prompt builders, JSON contracts, validator, wiki budgets).
 
+## Testing without a Mac
+
+Every push runs `.github/workflows/ios.yml` on a free GitHub Actions macOS runner: it generates the project, compiles the app, runs the unit tests, then boots an iPhone 16 simulator and drives the whole app with `AdaptFitUITests` — onboarding, planning a week, generating and adjusting a workout, chatting with the coach, feedback, history, and Coach's Notes — attaching a screenshot at every screen. Download the **app-screenshots** artifact from the workflow run to see the app running without owning a Mac.
+
+The UI tests launch the app with `-mock-llm` (canned coach responses from `MockLLMClient.swift` — no API key or credits needed; also handy as an offline demo mode) and `-ui-testing` (throwaway in-memory database).
+
+Note: macOS runners consume GitHub's free minutes at a 10× multiplier on private repos (~200 macOS-minutes/month on the free tier; one run takes ~15). Making the repo public removes the cap.
+
 ## Configuring the AI coach
 
 1. Get an API key from [DeepSeek](https://platform.deepseek.com) or [Alibaba Cloud Model Studio (Qwen)](https://modelstudio.console.alibabacloud.com).

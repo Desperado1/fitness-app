@@ -39,6 +39,18 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.adaptfit.tests
         GENERATE_INFOPLIST_FILE: YES
+  AdaptFitUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - AdaptFitUITests
+    dependencies:
+      - target: AdaptFit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.adaptfit.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: AdaptFit
 schemes:
   AdaptFit:
     build:
@@ -49,3 +61,4 @@ schemes:
     test:
       targets:
         - AdaptFitTests
+        - AdaptFitUITests
