@@ -32,7 +32,7 @@ struct FeedbackSheet: View {
                             } label: {
                                 Image(systemName: value <= rating ? "star.fill" : "star")
                                     .font(.title2)
-                                    .foregroundStyle(value <= rating ? .yellow : .secondary)
+                                    .foregroundStyle(value <= rating ? Color.appAccent : Color.appIconInactive)
                             }
                             .buttonStyle(.plain)
                             .frame(maxWidth: .infinity)
@@ -41,24 +41,33 @@ struct FeedbackSheet: View {
                     Text(labels[rating] ?? "")
                         .frame(maxWidth: .infinity)
                         .font(.headline)
+                        .foregroundStyle(Color.appTextPrimary)
                 }
+                .themedRow()
 
                 Section("How long did it take?") {
                     Stepper("\(actualMinutes) minutes", value: $actualMinutes, in: 5...180, step: 5)
                 }
+                .themedRow()
 
                 Section {
                     TextField("Anything to tell your coach? (too easy, knees hurt, loved it…)", text: $note, axis: .vertical)
                         .lineLimit(2...4)
                 } footer: {
                     Text("Your coach reads this — and what you adjusted or skipped — when planning what's next.")
+                        .foregroundStyle(Color.appTextSecondary)
                 }
+                .themedRow()
 
                 Section {
                     Button("Save") { save() }
-                        .frame(maxWidth: .infinity)
+                        .buttonStyle(.primaryAction)
                 }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
+            .listSectionSpacing(24)
+            .themedScreen()
             .navigationTitle("Nice work!")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -99,7 +99,7 @@ final class AdaptFitUITests: XCTestCase {
         let squat = app.staticTexts["Goblet Squat"]
         if squat.waitForExistence(timeout: 5) {
             squat.tap()
-            let saveAdjust = app.buttons["Save"]
+            let saveAdjust = app.navigationBars.buttons["Save"].firstMatch
             if saveAdjust.waitForExistence(timeout: 5) {
                 snap("06-adjust-exercise")
                 saveAdjust.tap()

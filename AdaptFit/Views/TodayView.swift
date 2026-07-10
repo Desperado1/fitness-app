@@ -52,8 +52,9 @@ struct TodayView: View {
                         systemImage: "exclamationmark.triangle"
                     )
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appTextSecondary)
                 }
+                .themedRow()
             }
 
             Section {
@@ -66,11 +67,12 @@ struct TodayView: View {
                         systemImage: "calendar.badge.exclamationmark"
                     )
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appTextSecondary)
                 }
             } header: {
                 Text("Up next")
             }
+            .themedRow()
 
             Section("Energy") {
                 Picker("Energy", selection: $checkIn.energy) {
@@ -81,6 +83,7 @@ struct TodayView: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
             }
+            .themedRow()
 
             Section("Where are you training?") {
                 Picker("Venue", selection: $checkIn.venue) {
@@ -90,19 +93,23 @@ struct TodayView: View {
                 }
                 .pickerStyle(.segmented)
             }
+            .themedRow()
 
             Section("Mood") {
                 TextField("How are you feeling? (optional)", text: $checkIn.moodText, axis: .vertical)
                     .lineLimit(1...3)
             }
+            .themedRow()
 
             Section("Body") {
                 TextField("Any soreness or pain? (optional)", text: $checkIn.sorenessOrPain, axis: .vertical)
             }
+            .themedRow()
 
             Section("Time") {
                 Stepper("\(checkIn.minutesAvailable) minutes", value: $checkIn.minutesAvailable, in: 10...120, step: 5)
             }
+            .themedRow()
 
             Section("Style for today") {
                 Picker("Style", selection: $checkIn.preferredStyle) {
@@ -112,6 +119,7 @@ struct TodayView: View {
                     }
                 }
             }
+            .themedRow()
 
             Section {
                 Button {
@@ -122,18 +130,21 @@ struct TodayView: View {
                             ProgressView()
                             Text("Your coach is thinking…")
                         }
-                        .frame(maxWidth: .infinity)
                     } else {
                         Label(
                             activeBlock?.nextPendingSession == nil ? "Create a one-off workout" : "Create today's workout",
                             systemImage: "sparkles"
                         )
-                        .frame(maxWidth: .infinity)
                     }
                 }
+                .buttonStyle(.primaryAction)
                 .disabled(isGenerating)
             }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
         }
+        .listSectionSpacing(24)
+        .themedScreen()
     }
 
     private func generate() async {

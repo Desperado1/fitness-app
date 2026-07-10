@@ -23,17 +23,21 @@ struct PlanView: View {
                         Text(block.rationale)
                             .font(.subheadline)
                             .italic()
+                            .foregroundStyle(Color.appTextSecondary)
                     } header: {
                         Text("This week's plan")
                     } footer: {
                         Text("Started \(block.startDate.formatted(date: .abbreviated, time: .omitted)) · \(block.completedSessionIndices.count)/\(block.sessions.count) sessions done")
+                            .foregroundStyle(Color.appTextSecondary)
                     }
+                    .themedRow()
 
                     Section("Sessions") {
                         ForEach(block.sessions) { session in
                             sessionRow(session, done: block.completedSessionIndices.contains(session.index))
                         }
                     }
+                    .themedRow()
                 } else {
                     Section {
                         ContentUnavailableView(
@@ -42,6 +46,7 @@ struct PlanView: View {
                             description: Text("Ask your coach to plan the week — each day's check-in then adapts the planned session to how you feel.")
                         )
                     }
+                    .listRowBackground(Color.clear)
                 }
 
                 Section {
@@ -57,15 +62,18 @@ struct PlanView: View {
                                 ProgressView()
                                 Text("Planning your week…")
                             }
-                            .frame(maxWidth: .infinity)
                         } else {
                             Label("Plan my week", systemImage: "sparkles")
-                                .frame(maxWidth: .infinity)
                         }
                     }
+                    .buttonStyle(.primaryAction)
                     .disabled(isPlanning)
                 }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
+            .listSectionSpacing(24)
+            .themedScreen()
             .navigationTitle("Plan")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -103,27 +111,30 @@ struct PlanView: View {
             if let note = session.homeAlternativeNote, !note.isEmpty {
                 Label(note, systemImage: "house")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appTextSecondary)
             }
             ForEach(session.exercises, id: \.self) { exercise in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(exercise.name).font(.subheadline)
+                    Text(exercise.name)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.appTextPrimary)
                     Text("\(exercise.sets)×\(exercise.reps)\(exercise.weight.map { " @ \($0)" } ?? "") · rest \(exercise.restSeconds)s")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.appTextSecondary)
                 }
             }
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: done ? "checkmark.circle.fill" : session.trainingStyle.symbol)
-                    .foregroundStyle(done ? .green : .accentColor)
+                    .foregroundStyle(done ? Color.appAccent : Color.appIconInactive)
                     .frame(width: 28)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(session.focus)
                         .font(.headline)
+                        .foregroundStyle(Color.appTextPrimary)
                     Text("\(session.trainingStyle.displayName) · \(session.durationMinutes) min")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.appTextSecondary)
                 }
             }
         }

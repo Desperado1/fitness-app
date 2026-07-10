@@ -22,8 +22,9 @@ struct OnboardingView: View {
                 Section {
                     Text("Tell your coach a little about you. Everything stays on your phone — it's only shared with the AI when generating a workout.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.appTextSecondary)
                 }
+                .themedRow()
 
                 Section("About you") {
                     TextField("Name", text: $name)
@@ -35,6 +36,7 @@ struct OnboardingView: View {
                     }
                     Stepper("Sessions per week: \(daysPerWeek)", value: $daysPerWeek, in: 1...7)
                 }
+                .themedRow()
 
                 Section {
                     TextField("e.g. 10 months postpartum, PCOD, mild thyroid issue", text: $medicalNotes, axis: .vertical)
@@ -44,7 +46,9 @@ struct OnboardingView: View {
                     Text("Health context")
                 } footer: {
                     Text("The coach uses this to keep every workout safe and appropriate. AdaptFit is not medical advice — check with your doctor before starting a new program.")
+                        .foregroundStyle(Color.appTextSecondary)
                 }
+                .themedRow()
 
                 Section {
                     Picker("Maximum intensity", selection: $intensityCeiling) {
@@ -57,12 +61,15 @@ struct OnboardingView: View {
                     Text("Hard limits")
                 } footer: {
                     Text("These are enforced by the app itself, on every workout, no matter what the AI suggests.")
+                        .foregroundStyle(Color.appTextSecondary)
                 }
+                .themedRow()
 
                 Section("Equipment") {
                     TextField("At home (e.g. dumbbells, band, mat)", text: $homeEquipment, axis: .vertical)
                     TextField("At the gym (e.g. full gym, or leave empty)", text: $gymEquipment, axis: .vertical)
                 }
+                .themedRow()
 
                 Section("Training styles you're open to") {
                     ForEach(TrainingStyle.allCases) { style in
@@ -71,13 +78,18 @@ struct OnboardingView: View {
                         }
                     }
                 }
+                .themedRow()
 
                 Section {
                     Button("Start training") { save() }
-                        .frame(maxWidth: .infinity)
+                        .buttonStyle(.primaryAction)
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || selectedStyles.isEmpty)
                 }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
+            .listSectionSpacing(24)
+            .themedScreen()
             .navigationTitle("Welcome to AdaptFit")
         }
     }
@@ -119,4 +131,5 @@ struct OnboardingView: View {
             for: [UserProfile.self, Workout.self, TrainingBlock.self, WikiPage.self, CoachChatMessage.self],
             inMemory: true
         )
+        .preferredColorScheme(.dark)
 }

@@ -35,7 +35,7 @@ struct ChatView: View {
                             if messages.isEmpty {
                                 Text("Ask about today's workout or request a change — \"my wrists hurt, swap the push-ups\", \"make it shorter\", \"why deadlifts today?\"")
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.appTextSecondary)
                                     .padding()
                             }
                             ForEach(messages) { message in
@@ -47,7 +47,7 @@ struct ChatView: View {
                                     ProgressView()
                                     Text("Coach is typing…")
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Color.appTextSecondary)
                                 }
                                 .padding(.horizontal)
                             }
@@ -63,12 +63,21 @@ struct ChatView: View {
                     }
                 }
 
-                Divider()
+                Rectangle()
+                    .fill(Color.appBorder)
+                    .frame(height: 1)
 
                 HStack(spacing: 8) {
                     TextField("Message your coach…", text: $input, axis: .vertical)
                         .lineLimit(1...4)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(.plain)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 18))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 18)
+                                .stroke(Color.appBorder, lineWidth: 1)
+                        )
                         .accessibilityIdentifier("chatInput")
                     Button {
                         Task { await send() }
@@ -80,7 +89,9 @@ struct ChatView: View {
                     .accessibilityIdentifier("chatSend")
                 }
                 .padding()
+                .background(Color.appBackground)
             }
+            .background(Color.appBackground.ignoresSafeArea())
             .navigationTitle("Coach")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -103,12 +114,17 @@ struct ChatView: View {
         HStack {
             if message.role == .user { Spacer(minLength: 40) }
             Text(message.content)
+                .foregroundStyle(Color.appTextPrimary)
                 .padding(10)
                 .background(
                     message.role == .user
-                        ? AnyShapeStyle(.tint.opacity(0.2))
-                        : AnyShapeStyle(.quaternary),
+                        ? AnyShapeStyle(Color.appAccent.opacity(0.22))
+                        : AnyShapeStyle(Color.appSurface),
                     in: RoundedRectangle(cornerRadius: 14)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color.appBorder, lineWidth: message.role == .assistant ? 1 : 0)
                 )
             if message.role == .assistant { Spacer(minLength: 40) }
         }

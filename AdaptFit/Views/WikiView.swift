@@ -21,8 +21,9 @@ struct WikiView: View {
             Section {
                 Text("Your coach keeps these notes and reads them before every plan, workout, and chat. Edit anything that's wrong — the coach will follow your version.")
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appTextSecondary)
             }
+            .themedRow()
 
             Section("Pages") {
                 ForEach(wiki.allPages()) { page in
@@ -32,13 +33,15 @@ struct WikiView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(WikiSlug(rawValue: page.slug)?.title ?? page.slug)
                                 .font(.headline)
+                                .foregroundStyle(Color.appTextPrimary)
                             Text("Updated \(page.updatedAt.formatted(date: .abbreviated, time: .shortened))")
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.appTextSecondary)
                         }
                     }
                 }
             }
+            .themedRow()
 
             Section {
                 Button {
@@ -57,13 +60,19 @@ struct WikiView: View {
                 }
                 .disabled(isRebuilding)
             } footer: {
-                if let rebuiltAt {
-                    Text("Rebuilt \(rebuiltAt.formatted(date: .omitted, time: .shortened)). Previous versions are kept in each page's history.")
-                } else {
-                    Text("Regenerates every page from your raw workout log. Use this if the notes have drifted or bloated — your workout history itself is never touched.")
+                Group {
+                    if let rebuiltAt {
+                        Text("Rebuilt \(rebuiltAt.formatted(date: .omitted, time: .shortened)). Previous versions are kept in each page's history.")
+                    } else {
+                        Text("Regenerates every page from your raw workout log. Use this if the notes have drifted or bloated — your workout history itself is never touched.")
+                    }
                 }
+                .foregroundStyle(Color.appTextSecondary)
             }
+            .themedRow()
         }
+        .listSectionSpacing(24)
+        .themedScreen()
         .navigationTitle("Coach's Notes")
         .confirmationDialog(
             "Rebuild all pages from workout history?",
@@ -116,13 +125,17 @@ private struct WikiPageEditor: View {
             Section {
                 TextEditor(text: $page.content)
                     .font(.body.monospaced())
+                    .foregroundStyle(Color.appTextPrimary)
+                    .scrollContentBackground(.hidden)
                     .frame(minHeight: 260)
                     .autocorrectionDisabled()
             } footer: {
                 if let slug = WikiSlug(rawValue: page.slug) {
                     Text(slug.purpose)
+                        .foregroundStyle(Color.appTextSecondary)
                 }
             }
+            .themedRow()
 
             if !page.snapshots.isEmpty {
                 Section("Previous versions") {
@@ -134,14 +147,17 @@ private struct WikiPageEditor: View {
                                 Text("Restore version from \(snapshot.savedAt.formatted(date: .abbreviated, time: .shortened))")
                                 Text(snapshot.content)
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.appTextSecondary)
                                     .lineLimit(2)
                             }
                         }
                     }
                 }
+                .themedRow()
             }
         }
+        .listSectionSpacing(24)
+        .themedScreen()
         .navigationTitle(WikiSlug(rawValue: page.slug)?.title ?? page.slug)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {

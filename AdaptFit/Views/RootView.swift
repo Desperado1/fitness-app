@@ -6,23 +6,28 @@ struct RootView: View {
     @Query private var profiles: [UserProfile]
 
     var body: some View {
-        if let profile = profiles.first {
-            TabView {
-                TodayView(profile: profile)
-                    .tabItem { Label("Today", systemImage: "sun.max") }
-                PlanView(profile: profile)
-                    .tabItem { Label("Plan", systemImage: "calendar.badge.clock") }
-                HistoryView(profile: profile)
-                    .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
-                SettingsView(profile: profile)
-                    .tabItem { Label("Settings", systemImage: "gearshape") }
+        Group {
+            if let profile = profiles.first {
+                TabView {
+                    TodayView(profile: profile)
+                        .tabItem { Label("Today", systemImage: "sun.max") }
+                    PlanView(profile: profile)
+                        .tabItem { Label("Plan", systemImage: "calendar.badge.clock") }
+                    HistoryView(profile: profile)
+                        .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
+                    SettingsView(profile: profile)
+                        .tabItem { Label("Settings", systemImage: "gearshape") }
+                }
+                .task {
+                    WikiStore(context: context).ensureSeeded(profile: profile)
+                }
+            } else {
+                OnboardingView()
             }
-            .task {
-                WikiStore(context: context).ensureSeeded(profile: profile)
-            }
-        } else {
-            OnboardingView()
         }
+        // Dark-first design system: fixed palette, so pin the scheme.
+        .preferredColorScheme(.dark)
+        .tint(Color.appAccent)
     }
 }
 

@@ -16,6 +16,7 @@ struct WorkoutDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(workout.title)
                         .font(.title2.bold())
+                        .foregroundStyle(Color.appTextPrimary)
                     HStack(spacing: 12) {
                         Label(workout.style.displayName, systemImage: workout.style.symbol)
                         Label("\(workout.durationMinutes) min", systemImage: "clock")
@@ -23,7 +24,7 @@ struct WorkoutDetailView: View {
                         Label(workout.venue.displayName, systemImage: workout.venue.symbol)
                     }
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appTextSecondary)
                 }
                 .padding(.vertical, 4)
 
@@ -31,8 +32,10 @@ struct WorkoutDetailView: View {
                     Text(workout.coachNote)
                         .font(.subheadline)
                         .italic()
+                        .foregroundStyle(Color.appTextSecondary)
                 }
             }
+            .themedRow()
 
             if !workout.warmup.isEmpty {
                 Section("Warm-up") {
@@ -40,6 +43,7 @@ struct WorkoutDetailView: View {
                         Text(step)
                     }
                 }
+                .themedRow()
             }
 
             Section {
@@ -51,8 +55,10 @@ struct WorkoutDetailView: View {
             } footer: {
                 if isEditable {
                     Text("Everything counts as done as prescribed unless you adjust or skip it.")
+                        .foregroundStyle(Color.appTextSecondary)
                 }
             }
+            .themedRow()
 
             if !workout.cooldown.isEmpty {
                 Section("Cool-down") {
@@ -60,13 +66,16 @@ struct WorkoutDetailView: View {
                         Text(step)
                     }
                 }
+                .themedRow()
             }
 
             if !workout.safetyNote.isEmpty {
                 Section("Take care") {
                     Label(workout.safetyNote, systemImage: "heart.text.square")
                         .font(.subheadline)
+                        .foregroundStyle(Color.appTextSecondary)
                 }
+                .themedRow()
             }
 
             Section {
@@ -76,30 +85,42 @@ struct WorkoutDetailView: View {
                         showFeedback = true
                     } label: {
                         Label("I'm done — log how it felt", systemImage: "checkmark.circle.fill")
-                            .frame(maxWidth: .infinity)
                     }
-                    Button(role: .destructive) {
+                    .buttonStyle(.primaryAction)
+
+                    Button {
                         workout.status = .skipped
                     } label: {
                         Text("Skip today")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.appTextSecondary)
                             .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
                     }
+                    .buttonStyle(.plain)
                 case .completed:
                     HStack {
                         Text("Completed \(workout.feedbackEmoji ?? "✅")")
                         Spacer()
                         if let text = workout.feedbackText, !text.isEmpty {
                             Text(text)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Color.appTextSecondary)
                                 .lineLimit(2)
                         }
                     }
+                    .listRowBackground(Color.appSurface)
                 case .skipped:
                     Text("Skipped — see you tomorrow 💛")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.appTextSecondary)
+                        .listRowBackground(Color.appSurface)
                 }
             }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
         }
+        .listSectionSpacing(24)
+        .themedScreen()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -120,6 +141,8 @@ struct WorkoutDetailView: View {
 }
 
 /// One exercise: prescription, actual-vs-prescribed status, adjust/skip controls.
+/// Status is carried by the neutral ramp; the accent marks only the
+/// "adjusted" state (the user actively changed something).
 private struct ExerciseRow: View {
     @Binding var exercise: ExerciseResult
     let editable: Bool
@@ -131,31 +154,32 @@ private struct ExerciseRow: View {
             HStack {
                 Text(exercise.name)
                     .font(.headline)
+                    .foregroundStyle(Color.appTextPrimary)
                 Spacer()
                 statusBadge
             }
             Text("\(exercise.prescribedSets) × \(exercise.prescribedReps)\(exercise.prescribedWeight.map { " @ \($0)" } ?? "") · rest \(exercise.restSeconds)s")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appTextSecondary)
                 .strikethrough(exercise.status == .skipped)
             if let notes = exercise.notes, !notes.isEmpty {
                 Text(notes)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appTextSecondary)
             }
             if exercise.status == .adjusted {
                 Text("Did: \(exercise.actualSets ?? exercise.prescribedSets) × \(exercise.actualReps ?? exercise.prescribedReps)\((exercise.actualWeight ?? exercise.prescribedWeight).map { " @ \($0)" } ?? "")")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.appAccent)
             }
             if let note = exercise.resultNote, !note.isEmpty {
                 Text(note)
                     .font(.caption)
                     .italic()
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appTextSecondary)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if editable {
                 if exercise.status == .skipped {
@@ -163,12 +187,12 @@ private struct ExerciseRow: View {
                         exercise.status = .asPrescribed
                         exercise.resultNote = nil
                     }
-                    .tint(.green)
+                    .tint(Color.appAccent)
                 } else {
                     Button("Skip") { exercise.status = .skipped }
-                        .tint(.red)
+                        .tint(Color.appIconInactive)
                     Button("Adjust") { showAdjust = true }
-                        .tint(.orange)
+                        .tint(Color.appAccent)
                 }
             }
         }
@@ -189,13 +213,13 @@ private struct ExerciseRow: View {
         switch exercise.status {
         case .asPrescribed:
             Image(systemName: "checkmark.circle")
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.appIconInactive)
         case .adjusted:
             Image(systemName: "slider.horizontal.3")
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.appAccent)
         case .skipped:
             Image(systemName: "xmark.circle")
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.appIconInactive)
         }
     }
 }
@@ -218,26 +242,22 @@ private struct AdjustExerciseSheet: View {
                     TextField("Reps (e.g. 8-10, 30 sec)", text: $reps)
                     TextField("Weight (e.g. 10 kg, bodyweight)", text: $weight)
                 }
+                .themedRow()
+
                 Section("Note for your coach") {
                     TextField("e.g. last set was a grind, wrists ached", text: $note, axis: .vertical)
                 }
-                Section {
-                    Button("Save") {
-                        exercise.actualSets = sets
-                        exercise.actualReps = reps
-                        exercise.actualWeight = weight.isEmpty ? nil : weight
-                        exercise.resultNote = note.isEmpty ? nil : note
-                        let unchanged = sets == exercise.prescribedSets
-                            && reps == exercise.prescribedReps
-                            && (weight.isEmpty ? exercise.prescribedWeight == nil : weight == exercise.prescribedWeight)
-                        exercise.status = unchanged ? .asPrescribed : .adjusted
-                        dismiss()
-                    }
-                    .frame(maxWidth: .infinity)
-                }
+                .themedRow()
             }
+            .listSectionSpacing(24)
+            .themedScreen()
             .navigationTitle(exercise.name)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { saveAndClose() }
+                }
+            }
             .onAppear {
                 sets = exercise.actualSets ?? exercise.prescribedSets
                 reps = exercise.actualReps ?? exercise.prescribedReps
@@ -245,5 +265,17 @@ private struct AdjustExerciseSheet: View {
                 note = exercise.resultNote ?? ""
             }
         }
+    }
+
+    private func saveAndClose() {
+        exercise.actualSets = sets
+        exercise.actualReps = reps
+        exercise.actualWeight = weight.isEmpty ? nil : weight
+        exercise.resultNote = note.isEmpty ? nil : note
+        let unchanged = sets == exercise.prescribedSets
+            && reps == exercise.prescribedReps
+            && (weight.isEmpty ? exercise.prescribedWeight == nil : weight == exercise.prescribedWeight)
+        exercise.status = unchanged ? .asPrescribed : .adjusted
+        dismiss()
     }
 }

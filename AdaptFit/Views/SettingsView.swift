@@ -51,7 +51,9 @@ struct SettingsView: View {
                     Text("AI coach")
                 } footer: {
                     Text("The key is stored securely in the iOS Keychain and only sent to \(provider.displayName) when generating a workout.")
+                        .foregroundStyle(Color.appTextSecondary)
                 }
+                .themedRow()
 
                 Section {
                     NavigationLink {
@@ -61,7 +63,9 @@ struct SettingsView: View {
                     }
                 } footer: {
                     Text("What the coach remembers about your training — readable, editable, and rebuildable.")
+                        .foregroundStyle(Color.appTextSecondary)
                 }
+                .themedRow()
 
                 Section("Your profile") {
                     TextField("Name", text: $profile.name)
@@ -73,12 +77,14 @@ struct SettingsView: View {
                     }
                     Stepper("Sessions per week: \(profile.daysPerWeek)", value: $profile.daysPerWeek, in: 1...7)
                 }
+                .themedRow()
 
                 Section("Health context") {
                     TextField("Medical notes", text: $profile.medicalNotes, axis: .vertical)
                         .lineLimit(2...4)
                     TextField("Injuries or limitations", text: $profile.injuriesOrLimitations, axis: .vertical)
                 }
+                .themedRow()
 
                 Section {
                     Picker("Maximum intensity", selection: $profile.intensityCeilingRaw) {
@@ -91,12 +97,15 @@ struct SettingsView: View {
                     Text("Hard limits")
                 } footer: {
                     Text("Enforced by the app on every generated workout and chat edit.")
+                        .foregroundStyle(Color.appTextSecondary)
                 }
+                .themedRow()
 
                 Section("Equipment") {
                     TextField("At home", text: $profile.homeEquipment, axis: .vertical)
                     TextField("At the gym", text: $profile.gymEquipment, axis: .vertical)
                 }
+                .themedRow()
 
                 Section("Training styles") {
                     ForEach(TrainingStyle.allCases) { style in
@@ -105,13 +114,17 @@ struct SettingsView: View {
                         }
                     }
                 }
+                .themedRow()
 
                 Section {
                     Text("AdaptFit generates workout suggestions with AI and is not a substitute for medical or professional advice. Stop any exercise that causes pain and consult your doctor about your training program.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.appTextSecondary)
                 }
+                .themedRow()
             }
+            .listSectionSpacing(24)
+            .themedScreen()
             .navigationTitle("Settings")
         }
     }

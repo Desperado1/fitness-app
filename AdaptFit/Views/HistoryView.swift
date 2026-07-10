@@ -30,9 +30,12 @@ struct HistoryView: View {
                                 context.delete(workouts[index])
                             }
                         }
+                        .themedRow()
                     }
+                    .listSectionSpacing(24)
                 }
             }
+            .themedScreen()
             .navigationTitle("History")
         }
     }
@@ -42,24 +45,26 @@ struct HistoryView: View {
             Image(systemName: workout.style.symbol)
                 .font(.title3)
                 .frame(width: 32)
-                .foregroundStyle(.tint)
+                .foregroundStyle(Color.appIconInactive)
             VStack(alignment: .leading, spacing: 2) {
                 Text(workout.title)
                     .font(.headline)
+                    .foregroundStyle(Color.appTextPrimary)
                     .lineLimit(1)
                 Text(workout.date, style: .date)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.appTextSecondary)
             }
             Spacer()
             switch workout.status {
             case .completed:
                 Text(workout.feedbackEmoji ?? "✅")
             case .skipped:
-                Text("—").foregroundStyle(.secondary)
+                Text("—").foregroundStyle(Color.appTextSecondary)
             case .planned:
-                Image(systemName: "circle.dashed").foregroundStyle(.secondary)
+                Image(systemName: "circle.dashed").foregroundStyle(Color.appIconInactive)
             }
         }
+        .padding(.vertical, 2)
     }
 }

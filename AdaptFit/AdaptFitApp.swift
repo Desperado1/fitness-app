@@ -3,6 +3,10 @@ import SwiftData
 
 @main
 struct AdaptFitApp: App {
+    init() {
+        Theme.configureAppearance()
+    }
+
     let container: ModelContainer = {
         let schema = Schema([
             UserProfile.self,
