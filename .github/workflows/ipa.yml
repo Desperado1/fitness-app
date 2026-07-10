@@ -5,6 +5,9 @@ name: Build IPA
 # phone — keeps free macOS minutes for the test workflow.
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/trigger-ipa"
 
 jobs:
   build-ipa:
