@@ -21,6 +21,15 @@ final class AdaptFitUITests: XCTestCase {
         add(attachment)
     }
 
+    /// Switches tabs via a coordinate tap. Plain .tap() on tab buttons can
+    /// fail with kAXErrorCannotComplete right after a sheet dismissal;
+    /// coordinate taps skip the AX scroll-to-visible machinery.
+    private func tapTab(_ name: String) {
+        let tab = app.tabBars.buttons[name]
+        XCTAssertTrue(tab.waitForExistence(timeout: 10), "Tab \(name) should exist")
+        tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    }
+
     /// Taps an element after making sure it's on screen, scrolling a
     /// bounded number of times if needed (Form content can be off-screen).
     private func scrollToAndTap(_ element: XCUIElement, attempts: Int = 6) {
@@ -62,7 +71,7 @@ final class AdaptFitUITests: XCTestCase {
         snap("02-today-checkin-noplan")
 
         // MARK: Plan the week
-        app.tabBars.buttons["Plan"].tap()
+        tapTab("Plan")
         snap("03-plan-empty")
 
         app.buttons["Plan my week"].tap()
@@ -71,7 +80,7 @@ final class AdaptFitUITests: XCTestCase {
         snap("04-plan-week")
 
         // MARK: Generate today's workout from the block
-        app.tabBars.buttons["Today"].tap()
+        tapTab("Today")
         scrollToAndTap(app.buttons["Create today's workout"])
 
         let workoutTitle = app.staticTexts["Steady Strength"]
@@ -120,11 +129,11 @@ final class AdaptFitUITests: XCTestCase {
         snap("09-workout-completed")
 
         // MARK: History
-        app.tabBars.buttons["History"].tap()
+        tapTab("History")
         snap("10-history")
 
         // MARK: Settings and Coach's Notes
-        app.tabBars.buttons["Settings"].tap()
+        tapTab("Settings")
         snap("11-settings")
 
         app.buttons["Coach's Notes"].tap()
