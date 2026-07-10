@@ -6,6 +6,7 @@ struct WorkoutDetailView: View {
     let profile: UserProfile
 
     @State private var showFeedback = false
+    @State private var showChat = false
 
     private var isEditable: Bool { workout.status == .planned }
 
@@ -99,9 +100,21 @@ struct WorkoutDetailView: View {
                 }
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showChat = true
+                } label: {
+                    Label("Chat with coach", systemImage: "bubble.left.and.bubble.right")
+                }
+            }
+        }
         .sheet(isPresented: $showFeedback) {
             FeedbackSheet(workout: workout)
                 .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showChat) {
+            ChatView(workout: workout, profile: profile)
         }
     }
 }

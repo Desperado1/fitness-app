@@ -14,6 +14,18 @@ struct SettingsView: View {
         LLMProvider(rawValue: providerRaw) ?? .deepseek
     }
 
+    private var bannedMovementsText: Binding<String> {
+        Binding(
+            get: { profile.bannedMovements.joined(separator: ", ") },
+            set: { newValue in
+                profile.bannedMovements = newValue
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+            }
+        )
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -41,6 +53,16 @@ struct SettingsView: View {
                     Text("The key is stored securely in the iOS Keychain and only sent to \(provider.displayName) when generating a workout.")
                 }
 
+                Section {
+                    NavigationLink {
+                        WikiView(profile: profile)
+                    } label: {
+                        Label("Coach's Notes", systemImage: "book.closed")
+                    }
+                } footer: {
+                    Text("What the coach remembers about your training — readable, editable, and rebuildable.")
+                }
+
                 Section("Your profile") {
                     TextField("Name", text: $profile.name)
                     TextField("Primary goal", text: $profile.primaryGoal, axis: .vertical)
@@ -58,8 +80,22 @@ struct SettingsView: View {
                     TextField("Injuries or limitations", text: $profile.injuriesOrLimitations, axis: .vertical)
                 }
 
+                Section {
+                    Picker("Maximum intensity", selection: $profile.intensityCeilingRaw) {
+                        ForEach(Intensity.allCases) { level in
+                            Text(level.displayName).tag(level.rawValue)
+                        }
+                    }
+                    TextField("Never program (comma-separated)", text: bannedMovementsText, axis: .vertical)
+                } header: {
+                    Text("Hard limits")
+                } footer: {
+                    Text("Enforced by the app on every generated workout and chat edit.")
+                }
+
                 Section("Equipment") {
-                    TextField("Equipment you have", text: $profile.equipment, axis: .vertical)
+                    TextField("At home", text: $profile.homeEquipment, axis: .vertical)
+                    TextField("At the gym", text: $profile.gymEquipment, axis: .vertical)
                 }
 
                 Section("Training styles") {

@@ -8,10 +8,13 @@ struct OnboardingView: View {
     @State private var primaryGoal = ""
     @State private var medicalNotes = ""
     @State private var injuries = ""
-    @State private var equipment = ""
+    @State private var homeEquipment = ""
+    @State private var gymEquipment = ""
     @State private var experience: ExperienceLevel = .beginner
     @State private var daysPerWeek = 3
     @State private var selectedStyles: Set<TrainingStyle> = Set(TrainingStyle.allCases)
+    @State private var bannedMovementsText = ""
+    @State private var intensityCeiling: Intensity = .high
 
     var body: some View {
         NavigationStack {
@@ -43,8 +46,22 @@ struct OnboardingView: View {
                     Text("The coach uses this to keep every workout safe and appropriate. AdaptFit is not medical advice — check with your doctor before starting a new program.")
                 }
 
-                Section("Equipment you have") {
-                    TextField("e.g. pair of dumbbells, resistance band, yoga mat", text: $equipment, axis: .vertical)
+                Section {
+                    Picker("Maximum intensity", selection: $intensityCeiling) {
+                        ForEach(Intensity.allCases) { level in
+                            Text(level.displayName).tag(level)
+                        }
+                    }
+                    TextField("Never program (comma-separated, e.g. box jump, crunch)", text: $bannedMovementsText, axis: .vertical)
+                } header: {
+                    Text("Hard limits")
+                } footer: {
+                    Text("These are enforced by the app itself, on every workout, no matter what the AI suggests.")
+                }
+
+                Section("Equipment") {
+                    TextField("At home (e.g. dumbbells, band, mat)", text: $homeEquipment, axis: .vertical)
+                    TextField("At the gym (e.g. full gym, or leave empty)", text: $gymEquipment, axis: .vertical)
                 }
 
                 Section("Training styles you're open to") {
@@ -75,15 +92,22 @@ struct OnboardingView: View {
     }
 
     private func save() {
+        let banned = bannedMovementsText
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
         let profile = UserProfile(
             name: name.trimmingCharacters(in: .whitespaces),
             primaryGoal: primaryGoal,
             medicalNotes: medicalNotes,
             injuriesOrLimitations: injuries,
-            equipment: equipment,
+            homeEquipment: homeEquipment,
+            gymEquipment: gymEquipment,
             allowedStyles: TrainingStyle.allCases.filter(selectedStyles.contains),
             experience: experience,
-            daysPerWeek: daysPerWeek
+            daysPerWeek: daysPerWeek,
+            bannedMovements: banned,
+            intensityCeiling: intensityCeiling
         )
         context.insert(profile)
     }
@@ -91,5 +115,8 @@ struct OnboardingView: View {
 
 #Preview {
     OnboardingView()
-        .modelContainer(for: [UserProfile.self, Workout.self], inMemory: true)
+        .modelContainer(
+            for: [UserProfile.self, Workout.self, TrainingBlock.self, WikiPage.self, CoachChatMessage.self],
+            inMemory: true
+        )
 }

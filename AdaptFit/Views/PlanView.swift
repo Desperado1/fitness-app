@@ -67,6 +67,15 @@ struct PlanView: View {
                 }
             }
             .navigationTitle("Plan")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        WikiView(profile: profile)
+                    } label: {
+                        Label("Coach's Notes", systemImage: "book.closed")
+                    }
+                }
+            }
             .confirmationDialog(
                 "Replace the current week's plan?",
                 isPresented: $showReplaceConfirmation,
