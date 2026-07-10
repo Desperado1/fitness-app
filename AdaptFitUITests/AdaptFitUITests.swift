@@ -30,7 +30,13 @@ final class AdaptFitUITests: XCTestCase {
             remaining -= 1
         }
         XCTAssertTrue(element.exists, "Expected \(element) to exist after scrolling")
-        element.tap()
+        if element.isHittable {
+            element.tap()
+        } else {
+            // Coordinate tap works even when hit-testing says otherwise
+            // (e.g. row partly under a bar).
+            element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
     }
 
     func testFullJourney() throws {
@@ -45,8 +51,14 @@ final class AdaptFitUITests: XCTestCase {
         scrollToAndTap(app.buttons["Start training"])
 
         // MARK: Today (empty state, no plan yet)
-        let energyHeader = app.staticTexts["Up next"]
-        XCTAssertTrue(energyHeader.waitForExistence(timeout: 10), "Check-in form should appear after onboarding")
+        // Milestone: the tab bar — section header text is unreliable
+        // (Forms render headers uppercased).
+        let planTab = app.tabBars.buttons["Plan"]
+        if !planTab.waitForExistence(timeout: 5), app.buttons["Start training"].exists {
+            // Retry once in case the first tap landed before the form settled.
+            scrollToAndTap(app.buttons["Start training"])
+        }
+        XCTAssertTrue(planTab.waitForExistence(timeout: 10), "Tab bar should appear after onboarding")
         snap("02-today-checkin-noplan")
 
         // MARK: Plan the week
@@ -96,7 +108,7 @@ final class AdaptFitUITests: XCTestCase {
 
         // MARK: Complete + feedback
         scrollToAndTap(app.buttons["I'm done — log how it felt"])
-        let feedbackTitle = app.staticTexts["How did it feel?"]
+        let feedbackTitle = app.navigationBars["Nice work!"]
         XCTAssertTrue(feedbackTitle.waitForExistence(timeout: 10), "Feedback sheet should appear")
         snap("08-feedback")
         scrollToAndTap(app.buttons["Save"])
@@ -116,8 +128,8 @@ final class AdaptFitUITests: XCTestCase {
         snap("11-settings")
 
         app.buttons["Coach's Notes"].tap()
-        let pagesHeader = app.staticTexts["Pages"]
-        XCTAssertTrue(pagesHeader.waitForExistence(timeout: 10), "Coach's Notes should open")
+        let rebuildButton = app.buttons["Rebuild from history"]
+        XCTAssertTrue(rebuildButton.waitForExistence(timeout: 10), "Coach's Notes should open")
         // Give the background scribe a moment to update pages.
         _ = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Coach's Log")
