@@ -125,15 +125,20 @@ final class AdaptFitUITests: XCTestCase {
 
         // MARK: Complete + feedback
         scrollToAndTap(app.buttons["I'm done — log how it felt"])
-        let feedbackTitle = app.navigationBars["Nice work!"]
-        XCTAssertTrue(feedbackTitle.waitForExistence(timeout: 10), "Feedback sheet should appear")
+        let feedbackBar = app.navigationBars["Nice work!"]
+        XCTAssertTrue(feedbackBar.waitForExistence(timeout: 10), "Feedback sheet should appear")
         snap("08-feedback")
-        scrollToAndTap(app.buttons["Save"])
+        feedbackBar.buttons["Save"].tap()
+
+        // The sheet must actually dismiss before the tab bar is tappable —
+        // taps on it are otherwise swallowed by the sheet overlay.
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: feedbackBar, handler: nil)
+        waitForExpectations(timeout: 10)
 
         let completed = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Completed")
         ).firstMatch
-        _ = completed.waitForExistence(timeout: 10)
+        XCTAssertTrue(completed.waitForExistence(timeout: 10), "Workout should show as completed")
         snap("09-workout-completed")
 
         // MARK: History

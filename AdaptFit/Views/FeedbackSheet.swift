@@ -61,6 +61,13 @@ struct FeedbackSheet: View {
             }
             .navigationTitle("Nice work!")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                // Always reachable even at the half-height detent, where
+                // the in-form Save can sit below the fold.
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                }
+            }
         }
     }
 
