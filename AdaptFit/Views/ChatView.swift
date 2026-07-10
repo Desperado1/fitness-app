@@ -105,7 +105,7 @@ struct ChatView: View {
                 .background(
                     message.role == .user
                         ? AnyShapeStyle(.tint.opacity(0.2))
-                        : AnyShapeStyle(.fill.secondary),
+                        : AnyShapeStyle(.quaternary),
                     in: RoundedRectangle(cornerRadius: 14)
                 )
             if message.role == .assistant { Spacer(minLength: 40) }

@@ -3,7 +3,7 @@ import SwiftData
 
 /// Manages the wiki layer: seeding, reading pages into prompt context,
 /// applying scribe/rebuild updates (with snapshots and size budgets).
-@MainActor
+/// Always used with the main ModelContext on the main actor.
 struct WikiStore {
     let context: ModelContext
 
