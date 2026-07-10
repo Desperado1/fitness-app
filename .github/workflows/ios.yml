@@ -32,7 +32,7 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tee xcodebuild.log | grep -E 'Test Case|Test Suite|error:|BUILD|TEST' || true
+            2>&1 | tee xcodebuild.log | grep -E 'Test Case|Test Suite|error:|BUILD|TEST|AXTREE' || true
           # The grep filter swallows xcodebuild's exit code; check the log for the verdict.
           grep -q "TEST SUCCEEDED" xcodebuild.log
 

@@ -21,6 +21,14 @@ final class AdaptFitUITests: XCTestCase {
         add(attachment)
     }
 
+    /// Prints the accessibility tree with a marker the CI log filter keeps,
+    /// so failures are diagnosable straight from the job log.
+    private func dumpTree(_ tag: String) {
+        for line in app.debugDescription.components(separatedBy: "\n") {
+            print("AXTREE[\(tag)] \(line)")
+        }
+    }
+
     /// Switches tabs via a coordinate tap. Plain .tap() on tab buttons can
     /// fail with kAXErrorCannotComplete right after a sheet dismissal;
     /// coordinate taps skip the AX scroll-to-visible machinery.
@@ -136,10 +144,16 @@ final class AdaptFitUITests: XCTestCase {
         tapTab("Settings")
         snap("11-settings")
 
-        // NavigationLink rows aren't always exposed as buttons — match any
-        // element type and tap by coordinate.
-        let notesRow = app.descendants(matching: .any)["Coach's Notes"].firstMatch
-        XCTAssertTrue(notesRow.waitForExistence(timeout: 10), "Coach's Notes row should exist in Settings")
+        // NavigationLink rows aren't always exposed as buttons — try the
+        // label's static text, then any element type, then dump the tree.
+        var notesRow = app.staticTexts["Coach's Notes"].firstMatch
+        if !notesRow.waitForExistence(timeout: 5) {
+            notesRow = app.descendants(matching: .any)["Coach's Notes"].firstMatch
+        }
+        if !notesRow.waitForExistence(timeout: 5) {
+            dumpTree("settings")
+            XCTFail("Coach's Notes row not found in Settings — see AXTREE dump in log")
+        }
         notesRow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
 
         let rebuildButton = app.buttons["Rebuild from history"]
