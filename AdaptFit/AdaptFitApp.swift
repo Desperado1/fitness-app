@@ -7,6 +7,12 @@ struct AdaptFitApp: App {
         WindowGroup {
             RootView()
         }
-        .modelContainer(for: [UserProfile.self, Workout.self])
+        .modelContainer(for: [
+            UserProfile.self,
+            Workout.self,
+            TrainingBlock.self,
+            WikiPage.self,
+            CoachChatMessage.self,
+        ])
     }
 }
