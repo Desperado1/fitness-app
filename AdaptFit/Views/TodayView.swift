@@ -6,9 +6,9 @@ struct TodayView: View {
 
     @Environment(\.modelContext) private var context
     @Query(sort: \Workout.date, order: .reverse) private var workouts: [Workout]
+    @Query(sort: \TrainingBlock.createdAt, order: .reverse) private var blocks: [TrainingBlock]
 
-    @AppStorage("llmProvider") private var providerRaw = LLMProvider.deepseek.rawValue
-    @AppStorage("llmModelOverride") private var modelOverride = ""
+    @AppStorage("scribeUpdateFailed") private var scribeUpdateFailed = false
 
     @State private var checkIn = DailyCheckIn()
     @State private var isGenerating = false
@@ -18,11 +18,15 @@ struct TodayView: View {
         workouts.first { Calendar.current.isDateInToday($0.date) }
     }
 
+    private var activeBlock: TrainingBlock? {
+        blocks.first { $0.status == .active }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
                 if let workout = todaysWorkout {
-                    WorkoutDetailView(workout: workout)
+                    WorkoutDetailView(workout: workout, profile: profile)
                 } else {
                     checkInForm
                 }
@@ -41,6 +45,33 @@ struct TodayView: View {
 
     private var checkInForm: some View {
         Form {
+            if scribeUpdateFailed {
+                Section {
+                    Label(
+                        "The coach's notes couldn't update after your last workout. You can rebuild them in Settings → Coach's Notes.",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
+                if let session = activeBlock?.nextPendingSession {
+                    Label(session.summaryLine, systemImage: "calendar.badge.clock")
+                        .font(.subheadline)
+                } else {
+                    Label(
+                        "No weekly plan active — plan your week in the Plan tab, or create a one-off workout below.",
+                        systemImage: "calendar.badge.exclamationmark"
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Up next")
+            }
+
             Section("Energy") {
                 Picker("Energy", selection: $checkIn.energy) {
                     ForEach(EnergyLevel.allCases) { level in
@@ -49,6 +80,15 @@ struct TodayView: View {
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()
+            }
+
+            Section("Where are you training?") {
+                Picker("Venue", selection: $checkIn.venue) {
+                    ForEach(Venue.allCases) { venue in
+                        Label(venue.displayName, systemImage: venue.symbol).tag(venue)
+                    }
+                }
+                .pickerStyle(.segmented)
             }
 
             Section("Mood") {
@@ -84,8 +124,11 @@ struct TodayView: View {
                         }
                         .frame(maxWidth: .infinity)
                     } else {
-                        Label("Create my workout", systemImage: "sparkles")
-                            .frame(maxWidth: .infinity)
+                        Label(
+                            activeBlock?.nextPendingSession == nil ? "Create a one-off workout" : "Create today's workout",
+                            systemImage: "sparkles"
+                        )
+                        .frame(maxWidth: .infinity)
                     }
                 }
                 .disabled(isGenerating)
@@ -97,19 +140,23 @@ struct TodayView: View {
         isGenerating = true
         defer { isGenerating = false }
 
-        let provider = LLMProvider(rawValue: providerRaw) ?? .deepseek
-        let client = LLMClient(
-            provider: provider,
-            modelOverride: modelOverride,
-            apiKey: KeychainStore.read(KeychainStore.apiKeyAccount)
-        )
+        let wiki = WikiStore(context: context)
+        wiki.ensureSeeded(profile: profile)
+        let session = activeBlock?.nextPendingSession
+
         do {
-            let generated = try await WorkoutGenerator(client: client).generate(
+            let generated = try await CoachService(client: .fromSettings()).generateWorkout(
                 profile: profile,
-                checkIn: checkIn,
-                recentWorkouts: Array(workouts.prefix(7))
+                wikiContext: wiki.contextString(),
+                session: session,
+                checkIn: checkIn
             )
-            context.insert(Workout(date: .now, generated: generated, checkIn: checkIn))
+            context.insert(Workout(
+                date: .now,
+                generated: generated,
+                checkIn: checkIn,
+                blockSessionIndex: session?.index
+            ))
         } catch {
             errorMessage = error.localizedDescription
         }

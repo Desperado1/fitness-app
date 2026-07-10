@@ -2,6 +2,8 @@ import SwiftUI
 import SwiftData
 
 struct HistoryView: View {
+    let profile: UserProfile
+
     @Environment(\.modelContext) private var context
     @Query(sort: \Workout.date, order: .reverse) private var workouts: [Workout]
 
@@ -18,7 +20,7 @@ struct HistoryView: View {
                     List {
                         ForEach(workouts) { workout in
                             NavigationLink {
-                                WorkoutDetailView(workout: workout)
+                                WorkoutDetailView(workout: workout, profile: profile)
                             } label: {
                                 row(for: workout)
                             }
