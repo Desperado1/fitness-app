@@ -82,7 +82,7 @@ final class FlowFitUITests: XCTestCase {
         tapTab("Plan")
         snap("03-plan-empty")
 
-        app.buttons["Plan my week"].tap()
+        scrollToAndTap(app.buttons["Plan my week"])
         let firstSession = app.staticTexts["Lower-body strength"]
         XCTAssertTrue(firstSession.waitForExistence(timeout: 20), "Planned sessions should appear")
         snap("04-plan-week")
@@ -95,10 +95,10 @@ final class FlowFitUITests: XCTestCase {
         XCTAssertTrue(workoutTitle.waitForExistence(timeout: 20), "Generated workout should appear")
         snap("05-todays-workout")
 
-        // MARK: Adjust one exercise
+        // MARK: Adjust one exercise (exercise rows are tappable cards)
         let squat = app.staticTexts["Goblet Squat"]
         if squat.waitForExistence(timeout: 5) {
-            squat.tap()
+            scrollToAndTap(squat)
             let saveAdjust = app.navigationBars.buttons["Save"].firstMatch
             if saveAdjust.waitForExistence(timeout: 5) {
                 snap("06-adjust-exercise")

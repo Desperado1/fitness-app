@@ -37,7 +37,7 @@ struct OnboardingView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     SectionHeader(title: "About you")
                     Card {
-                        LabeledField(label: "Name", placeholder: "Name", text: $name)
+                        LabeledField(label: "Name", placeholder: "Name", text: $name, multiline: false)
                         Rectangle().fill(Color.appBorder).frame(height: 1)
                         LabeledField(label: "Primary goal", placeholder: "e.g. rebuild strength, lose fat", text: $primaryGoal)
                         Rectangle().fill(Color.appBorder).frame(height: 1)
