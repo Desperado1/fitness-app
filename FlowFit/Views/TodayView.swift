@@ -28,10 +28,10 @@ struct TodayView: View {
                 if let workout = todaysWorkout {
                     WorkoutDetailView(workout: workout, profile: profile)
                 } else {
-                    checkInForm
+                    checkInScreen
+                        .toolbar(.hidden, for: .navigationBar)
                 }
             }
-            .navigationTitle(todaysWorkout == nil ? "How are you today?" : "Today's workout")
             .alert("Couldn't generate workout", isPresented: .init(
                 get: { errorMessage != nil },
                 set: { if !$0 { errorMessage = nil } }
@@ -43,108 +43,141 @@ struct TodayView: View {
         }
     }
 
-    private var checkInForm: some View {
-        Form {
+    private var checkInScreen: some View {
+        Screen {
+            ScreenHeader(
+                title: "How are you today?",
+                subtitle: Date.now.formatted(date: .complete, time: .omitted),
+                showLogo: true
+            )
+
             if scribeUpdateFailed {
-                Section {
-                    Label(
-                        "The coach's notes couldn't update after your last workout. You can rebuild them in Settings → Coach's Notes.",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .font(.footnote)
-                    .foregroundStyle(Color.appTextSecondary)
+                Card {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .foregroundStyle(Color.appIconInactive)
+                        Text("The coach's notes couldn't update after your last workout. You can rebuild them in Settings → Coach's Notes.")
+                            .font(.footnote)
+                            .foregroundStyle(Color.appTextSecondary)
+                    }
                 }
-                .themedRow()
             }
 
-            Section {
-                if let session = activeBlock?.nextPendingSession {
-                    Label(session.summaryLine, systemImage: "calendar.badge.clock")
-                        .font(.subheadline)
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeader(title: "Up next")
+                Card {
+                    HStack(spacing: 12) {
+                        IconWell(
+                            systemName: activeBlock?.nextPendingSession == nil
+                                ? "calendar.badge.exclamationmark"
+                                : "calendar.badge.clock",
+                            active: activeBlock?.nextPendingSession != nil
+                        )
+                        if let session = activeBlock?.nextPendingSession {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(session.focus)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Color.appTextPrimary)
+                                Text("\(session.trainingStyle.displayName) · \(session.durationMinutes) min planned")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.appTextSecondary)
+                            }
+                        } else {
+                            Text("No weekly plan active — plan your week in the Plan tab, or create a one-off workout below.")
+                                .font(.footnote)
+                                .foregroundStyle(Color.appTextSecondary)
+                        }
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeader(title: "Energy")
+                HStack(spacing: 10) {
+                    ForEach(EnergyLevel.allCases) { level in
+                        Button {
+                            checkIn.energy = level
+                        } label: {
+                            OptionCard(
+                                emoji: level.emoji,
+                                label: level.displayName,
+                                selected: checkIn.energy == level
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(level.displayName)
+                        .accessibilityIdentifier("energy-\(level.rawValue)")
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeader(title: "Where are you training?")
+                PillToggle(selection: $checkIn.venue, options: [
+                    (Venue.home, "Home", "house"),
+                    (Venue.gym, "Gym", "building.2"),
+                ])
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeader(title: "How you feel")
+                Card {
+                    LabeledField(label: "Mood", placeholder: "How are you feeling? (optional)", text: $checkIn.moodText)
+                    Rectangle().fill(Color.appBorder).frame(height: 1)
+                    LabeledField(label: "Soreness or pain", placeholder: "Anything sore or hurting? (optional)", text: $checkIn.sorenessOrPain)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeader(title: "Time available")
+                Card {
+                    CapsuleStepper(value: $checkIn.minutesAvailable, range: 10...120)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeader(title: "Style for today")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        Button {
+                            checkIn.preferredStyle = nil
+                        } label: {
+                            Chip(label: "Coach's choice", systemImage: "sparkles", selected: checkIn.preferredStyle == nil)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("styleChip-coach")
+
+                        ForEach(profile.allowedStyles) { style in
+                            Button {
+                                checkIn.preferredStyle = style
+                            } label: {
+                                Chip(label: style.displayName, systemImage: style.symbol, selected: checkIn.preferredStyle == style)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("styleChip-\(style.rawValue)")
+                        }
+                    }
+                }
+            }
+
+            Button {
+                Task { await generate() }
+            } label: {
+                if isGenerating {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("Your coach is thinking…")
+                    }
                 } else {
                     Label(
-                        "No weekly plan active — plan your week in the Plan tab, or create a one-off workout below.",
-                        systemImage: "calendar.badge.exclamationmark"
+                        activeBlock?.nextPendingSession == nil ? "Create a one-off workout" : "Create today's workout",
+                        systemImage: "sparkles"
                     )
-                    .font(.subheadline)
-                    .foregroundStyle(Color.appTextSecondary)
-                }
-            } header: {
-                Text("Up next")
-            }
-            .themedRow()
-
-            Section("Energy") {
-                Picker("Energy", selection: $checkIn.energy) {
-                    ForEach(EnergyLevel.allCases) { level in
-                        Text("\(level.emoji) \(level.displayName)").tag(level)
-                    }
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            }
-            .themedRow()
-
-            Section("Where are you training?") {
-                Picker("Venue", selection: $checkIn.venue) {
-                    ForEach(Venue.allCases) { venue in
-                        Label(venue.displayName, systemImage: venue.symbol).tag(venue)
-                    }
-                }
-                .pickerStyle(.segmented)
-            }
-            .themedRow()
-
-            Section("Mood") {
-                TextField("How are you feeling? (optional)", text: $checkIn.moodText, axis: .vertical)
-                    .lineLimit(1...3)
-            }
-            .themedRow()
-
-            Section("Body") {
-                TextField("Any soreness or pain? (optional)", text: $checkIn.sorenessOrPain, axis: .vertical)
-            }
-            .themedRow()
-
-            Section("Time") {
-                Stepper("\(checkIn.minutesAvailable) minutes", value: $checkIn.minutesAvailable, in: 10...120, step: 5)
-            }
-            .themedRow()
-
-            Section("Style for today") {
-                Picker("Style", selection: $checkIn.preferredStyle) {
-                    Text("Coach's choice").tag(TrainingStyle?.none)
-                    ForEach(profile.allowedStyles) { style in
-                        Text(style.displayName).tag(TrainingStyle?.some(style))
-                    }
                 }
             }
-            .themedRow()
-
-            Section {
-                Button {
-                    Task { await generate() }
-                } label: {
-                    if isGenerating {
-                        HStack(spacing: 10) {
-                            ProgressView()
-                            Text("Your coach is thinking…")
-                        }
-                    } else {
-                        Label(
-                            activeBlock?.nextPendingSession == nil ? "Create a one-off workout" : "Create today's workout",
-                            systemImage: "sparkles"
-                        )
-                    }
-                }
-                .buttonStyle(.primaryAction)
-                .disabled(isGenerating)
-            }
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
+            .buttonStyle(.primaryAction)
+            .disabled(isGenerating)
         }
-        .listSectionSpacing(24)
-        .themedScreen()
     }
 
     private func generate() async {

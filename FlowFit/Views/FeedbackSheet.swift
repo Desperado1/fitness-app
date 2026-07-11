@@ -23,56 +23,58 @@ struct FeedbackSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("How did it feel?") {
-                    HStack {
-                        ForEach(1...5, id: \.self) { value in
-                            Button {
-                                rating = value
-                            } label: {
-                                Image(systemName: value <= rating ? "star.fill" : "star")
-                                    .font(.title2)
-                                    .foregroundStyle(value <= rating ? Color.appAccent : Color.appIconInactive)
+            Screen {
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionHeader(title: "How did it feel?")
+                    Card {
+                        HStack {
+                            ForEach(1...5, id: \.self) { value in
+                                Button {
+                                    rating = value
+                                } label: {
+                                    Image(systemName: value <= rating ? "star.fill" : "star")
+                                        .font(.title)
+                                        .foregroundStyle(value <= rating ? Color.appAccent : Color.appIconInactive)
+                                }
+                                .buttonStyle(.plain)
+                                .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(.plain)
-                            .frame(maxWidth: .infinity)
                         }
+                        Text(labels[rating] ?? "")
+                            .frame(maxWidth: .infinity)
+                            .font(.headline)
+                            .foregroundStyle(Color.appTextPrimary)
                     }
-                    Text(labels[rating] ?? "")
-                        .frame(maxWidth: .infinity)
-                        .font(.headline)
-                        .foregroundStyle(Color.appTextPrimary)
                 }
-                .themedRow()
 
-                Section("How long did it take?") {
-                    Stepper("\(actualMinutes) minutes", value: $actualMinutes, in: 5...180, step: 5)
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionHeader(title: "How long did it take?")
+                    Card {
+                        CapsuleStepper(value: $actualMinutes, range: 5...180)
+                    }
                 }
-                .themedRow()
 
-                Section {
-                    TextField("Anything to tell your coach? (too easy, knees hurt, loved it…)", text: $note, axis: .vertical)
-                        .lineLimit(2...4)
-                } footer: {
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionHeader(title: "Tell your coach")
+                    Card {
+                        LabeledField(
+                            label: "Anything worth knowing?",
+                            placeholder: "too easy, knees hurt, loved it… (optional)",
+                            text: $note
+                        )
+                    }
                     Text("Your coach reads this — and what you adjusted or skipped — when planning what's next.")
+                        .font(.caption)
                         .foregroundStyle(Color.appTextSecondary)
                 }
-                .themedRow()
 
-                Section {
-                    Button("Save") { save() }
-                        .buttonStyle(.primaryAction)
-                }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
+                Button("Save") { save() }
+                    .buttonStyle(.primaryAction)
             }
-            .listSectionSpacing(24)
-            .themedScreen()
             .navigationTitle("Nice work!")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // Always reachable even at the half-height detent, where
-                // the in-form Save can sit below the fold.
+                // Always reachable even at the half-height detent.
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                 }
