@@ -63,10 +63,10 @@ struct PrimaryActionButtonStyle: ButtonStyle {
             .foregroundStyle(Color.appBackground)
             .tint(Color.appBackground)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .padding(.vertical, 16)
             .background(
                 Color.appAccent.opacity(configuration.isPressed ? 0.75 : (isEnabled ? 1 : 0.35)),
-                in: RoundedRectangle(cornerRadius: 14)
+                in: Capsule()
             )
     }
 }
@@ -75,9 +75,16 @@ extension ButtonStyle where Self == PrimaryActionButtonStyle {
     static var primaryAction: PrimaryActionButtonStyle { PrimaryActionButtonStyle() }
 }
 
-/// One-time UIKit appearance for the chrome SwiftUI doesn't expose:
-/// tab bar and navigation bar colors.
+/// Design-system constants plus one-time UIKit appearance for the
+/// chrome SwiftUI doesn't expose (tab bar and navigation bar colors).
 enum Theme {
+    /// Horizontal screen padding.
+    static let screenPadding: CGFloat = 20
+    /// Corner radius for cards and option tiles.
+    static let cardRadius: CGFloat = 16
+    /// Vertical rhythm between sections.
+    static let sectionGap: CGFloat = 24
+
     static func configureAppearance() {
         let tab = UITabBarAppearance()
         tab.configureWithOpaqueBackground()
