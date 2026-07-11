@@ -10,6 +10,7 @@ struct PlanView: View {
     @State private var isPlanning = false
     @State private var showReplaceConfirmation = false
     @State private var errorMessage: String?
+    @State private var expandedSessions: Set<Int> = []
 
     private var activeBlock: TrainingBlock? {
         blocks.first { $0.status == .active }
@@ -17,73 +18,80 @@ struct PlanView: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            Screen {
+                HStack(alignment: .center) {
+                    ScreenHeader(title: "Plan", subtitle: "Your training week")
+                    NavigationLink {
+                        WikiView(profile: profile)
+                    } label: {
+                        IconWell(systemName: "book.closed")
+                    }
+                    .accessibilityLabel("Coach's Notes")
+                }
+
                 if let block = activeBlock {
-                    Section {
+                    Card {
                         Text(block.rationale)
                             .font(.subheadline)
                             .italic()
                             .foregroundStyle(Color.appTextSecondary)
-                    } header: {
-                        Text("This week's plan")
-                    } footer: {
-                        Text("Started \(block.startDate.formatted(date: .abbreviated, time: .omitted)) · \(block.completedSessionIndices.count)/\(block.sessions.count) sessions done")
-                            .foregroundStyle(Color.appTextSecondary)
-                    }
-                    .themedRow()
-
-                    Section("Sessions") {
-                        ForEach(block.sessions) { session in
-                            sessionRow(session, done: block.completedSessionIndices.contains(session.index))
-                        }
-                    }
-                    .themedRow()
-                } else {
-                    Section {
-                        ContentUnavailableView(
-                            "No plan yet",
-                            systemImage: "calendar.badge.plus",
-                            description: Text("Ask your coach to plan the week — each day's check-in then adapts the planned session to how you feel.")
+                        ThinProgressBar(
+                            progress: block.sessions.isEmpty
+                                ? 0
+                                : Double(block.completedSessionIndices.count) / Double(block.sessions.count)
                         )
+                        HStack {
+                            Text("Started \(block.startDate.formatted(date: .abbreviated, time: .omitted))")
+                            Spacer()
+                            Text("\(block.completedSessionIndices.count)/\(block.sessions.count) done")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(Color.appTextSecondary)
                     }
-                    .listRowBackground(Color.clear)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        SectionHeader(title: "Sessions")
+                        ForEach(block.sessions) { session in
+                            sessionCard(session, done: block.completedSessionIndices.contains(session.index))
+                        }
+                    }
+                } else {
+                    Card {
+                        VStack(spacing: 10) {
+                            IconWell(systemName: "calendar.badge.plus", size: 52)
+                            Text("No plan yet")
+                                .font(.headline)
+                                .foregroundStyle(Color.appTextPrimary)
+                            Text("Ask your coach to plan the week — each day's check-in then adapts the planned session to how you feel.")
+                                .font(.footnote)
+                                .foregroundStyle(Color.appTextSecondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                    }
                 }
 
-                Section {
-                    Button {
-                        if activeBlock != nil {
-                            showReplaceConfirmation = true
-                        } else {
-                            Task { await planWeek() }
-                        }
-                    } label: {
-                        if isPlanning {
-                            HStack(spacing: 10) {
-                                ProgressView()
-                                Text("Planning your week…")
-                            }
-                        } else {
-                            Label("Plan my week", systemImage: "sparkles")
-                        }
+                Button {
+                    if activeBlock != nil {
+                        showReplaceConfirmation = true
+                    } else {
+                        Task { await planWeek() }
                     }
-                    .buttonStyle(.primaryAction)
-                    .disabled(isPlanning)
-                }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-            }
-            .listSectionSpacing(24)
-            .themedScreen()
-            .navigationTitle("Plan")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        WikiView(profile: profile)
-                    } label: {
-                        Label("Coach's Notes", systemImage: "book.closed")
+                } label: {
+                    if isPlanning {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                            Text("Planning your week…")
+                        }
+                    } else {
+                        Label("Plan my week", systemImage: "sparkles")
                     }
                 }
+                .buttonStyle(.primaryAction)
+                .disabled(isPlanning)
             }
+            .toolbar(.hidden, for: .navigationBar)
             .confirmationDialog(
                 "Replace the current week's plan?",
                 isPresented: $showReplaceConfirmation,
@@ -106,36 +114,64 @@ struct PlanView: View {
         }
     }
 
-    private func sessionRow(_ session: PlannedSession, done: Bool) -> some View {
-        DisclosureGroup {
-            if let note = session.homeAlternativeNote, !note.isEmpty {
-                Label(note, systemImage: "house")
-                    .font(.caption)
-                    .foregroundStyle(Color.appTextSecondary)
-            }
-            ForEach(session.exercises, id: \.self) { exercise in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(exercise.name)
-                        .font(.subheadline)
-                        .foregroundStyle(Color.appTextPrimary)
-                    Text("\(exercise.sets)×\(exercise.reps)\(exercise.weight.map { " @ \($0)" } ?? "") · rest \(exercise.restSeconds)s")
-                        .font(.caption)
-                        .foregroundStyle(Color.appTextSecondary)
+    private func sessionCard(_ session: PlannedSession, done: Bool) -> some View {
+        Card {
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    if expandedSessions.contains(session.index) {
+                        expandedSessions.remove(session.index)
+                    } else {
+                        expandedSessions.insert(session.index)
+                    }
                 }
-            }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: done ? "checkmark.circle.fill" : session.trainingStyle.symbol)
-                    .foregroundStyle(done ? Color.appAccent : Color.appIconInactive)
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(session.focus)
-                        .font(.headline)
-                        .foregroundStyle(Color.appTextPrimary)
-                    Text("\(session.trainingStyle.displayName) · \(session.durationMinutes) min")
-                        .font(.caption)
-                        .foregroundStyle(Color.appTextSecondary)
+            } label: {
+                HStack(spacing: 12) {
+                    IconWell(
+                        systemName: done ? "checkmark" : session.trainingStyle.symbol,
+                        active: done
+                    )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(session.focus)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.appTextPrimary)
+                        Text("\(session.trainingStyle.displayName) · \(session.durationMinutes) min")
+                            .font(.caption)
+                            .foregroundStyle(Color.appTextSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.appIconInactive)
+                        .rotationEffect(.degrees(expandedSessions.contains(session.index) ? 180 : 0))
                 }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if expandedSessions.contains(session.index) {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let note = session.homeAlternativeNote, !note.isEmpty {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "house")
+                                .font(.caption)
+                                .foregroundStyle(Color.appIconInactive)
+                            Text(note)
+                                .font(.caption)
+                                .foregroundStyle(Color.appTextSecondary)
+                        }
+                    }
+                    ForEach(session.exercises, id: \.self) { exercise in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(exercise.name)
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(Color.appTextPrimary)
+                            Text("\(exercise.sets)×\(exercise.reps)\(exercise.weight.map { " @ \($0)" } ?? "") · rest \(exercise.restSeconds)s")
+                                .font(.caption2)
+                                .foregroundStyle(Color.appTextSecondary)
+                        }
+                    }
+                }
+                .padding(.leading, 50)
             }
         }
     }
