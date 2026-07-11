@@ -45,7 +45,7 @@ struct OnboardingView: View {
                 } header: {
                     Text("Health context")
                 } footer: {
-                    Text("The coach uses this to keep every workout safe and appropriate. AdaptFit is not medical advice — check with your doctor before starting a new program.")
+                    Text("The coach uses this to keep every workout safe and appropriate. FlowFit is not medical advice — check with your doctor before starting a new program.")
                         .foregroundStyle(Color.appTextSecondary)
                 }
                 .themedRow()
@@ -90,7 +90,7 @@ struct OnboardingView: View {
             }
             .listSectionSpacing(24)
             .themedScreen()
-            .navigationTitle("Welcome to AdaptFit")
+            .navigationTitle("Welcome to FlowFit")
         }
     }
 

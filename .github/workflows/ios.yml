@@ -27,8 +27,8 @@ jobs:
       - name: Build and run tests (unit + UI with screenshots)
         run: |
           xcodebuild test \
-            -project AdaptFit.xcodeproj \
-            -scheme AdaptFit \
+            -project FlowFit.xcodeproj \
+            -scheme FlowFit \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \

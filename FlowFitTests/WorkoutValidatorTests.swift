@@ -1,5 +1,5 @@
 import XCTest
-@testable import AdaptFit
+@testable import FlowFit
 
 final class WorkoutValidatorTests: XCTestCase {
     private func makeProfile(

@@ -1,4 +1,4 @@
-# AdaptFit
+# FlowFit
 
 A minimalist iOS workout app with an AI coach. No subscriptions, no single-discipline lock-in — a weekly plan that adapts every day to how you actually feel.
 
@@ -32,7 +32,7 @@ Every LLM call goes through `CoachService`, one of five roles sharing the same m
 
 - **Code-level guardrails** (`WorkoutValidator.swift`), independent of prompts: intensity is clamped to the profile's ceiling; banned movements and disabled styles cause a regeneration with the violation fed back, then a visible error — never a silent pass. Unsafe chat edits are refused.
 - **Prompt-level rules**: postpartum → no high-impact plyo, no heavy spinal loading, pelvic-floor-friendly core work; PCOD/thyroid → consistent moderate intensity with strength emphasis; low energy or negative feedback → deload; never program through reported pain.
-- **Honest framing**: AdaptFit is not medical advice; it assumes doctor clearance for exercise.
+- **Honest framing**: FlowFit is not medical advice; it assumes doctor clearance for exercise.
 
 ## Project setup
 
@@ -41,14 +41,14 @@ The Xcode project is generated with [XcodeGen](https://github.com/yonaskolb/Xcod
 ```bash
 brew install xcodegen
 xcodegen generate
-open AdaptFit.xcodeproj
+open FlowFit.xcodeproj
 ```
 
-Requirements: Xcode 15+, iOS 17+ target. No third-party Swift dependencies. Run unit tests with ⌘U (`AdaptFitTests`: prompt builders, JSON contracts, validator, wiki budgets).
+Requirements: Xcode 15+, iOS 17+ target. No third-party Swift dependencies. Run unit tests with ⌘U (`FlowFitTests`: prompt builders, JSON contracts, validator, wiki budgets).
 
 ## Testing without a Mac
 
-Every push runs `.github/workflows/ios.yml` on a free GitHub Actions macOS runner: it generates the project, compiles the app, runs the unit tests, then boots an iPhone 16 simulator and drives the whole app with `AdaptFitUITests` — onboarding, planning a week, generating and adjusting a workout, chatting with the coach, feedback, history, and Coach's Notes — attaching a screenshot at every screen. Download the **app-screenshots** artifact from the workflow run to see the app running without owning a Mac.
+Every push runs `.github/workflows/ios.yml` on a free GitHub Actions macOS runner: it generates the project, compiles the app, runs the unit tests, then boots an iPhone 16 simulator and drives the whole app with `FlowFitUITests` — onboarding, planning a week, generating and adjusting a workout, chatting with the coach, feedback, history, and Coach's Notes — attaching a screenshot at every screen. Download the **app-screenshots** artifact from the workflow run to see the app running without owning a Mac.
 
 The UI tests launch the app with `-mock-llm` (canned coach responses from `MockLLMClient.swift` — no API key or credits needed; also handy as an offline demo mode) and `-ui-testing` (throwaway in-memory database).
 
@@ -56,7 +56,7 @@ Note: macOS runners consume GitHub's free minutes at a 10× multiplier on privat
 
 ## Install on your iPhone (AltStore, no Mac needed)
 
-The **Build IPA** workflow produces an unsigned `AdaptFit.ipa`; [AltStore](https://altstore.io) signs and installs it with a free Apple ID from a Windows PC. iPhone must be on iOS 17+.
+The **Build IPA** workflow produces an unsigned `FlowFit.ipa`; [AltStore](https://altstore.io) signs and installs it with a free Apple ID from a Windows PC. iPhone must be on iOS 17+.
 
 **One-time PC + iPhone setup**
 
@@ -68,7 +68,7 @@ The **Build IPA** workflow produces an unsigned `AdaptFit.ipa`; [AltStore](https
 **Each build you want on the phone**
 
 1. GitHub → Actions → **Build IPA** → *Run workflow* (takes ~5 min).
-2. Download the `AdaptFit-ipa` artifact from the run page and unzip it to get `AdaptFit.ipa`.
+2. Download the `FlowFit-ipa` artifact from the run page and unzip it to get `FlowFit.ipa`.
 3. Get the `.ipa` onto the phone (email/Drive/whatever), open it with the **AltStore** app → Install. (Or, from the PC: AltServer tray icon → *Sideload .ipa*.)
 4. First launch: set your DeepSeek/Qwen API key in **Settings → AI coach** — the phone build talks to the real provider.
 
@@ -88,8 +88,8 @@ The **Build IPA** workflow produces an unsigned `AdaptFit.ipa`; [AltStore](https
 ## Code map
 
 ```
-AdaptFit/
-├── AdaptFitApp.swift             # App entry, SwiftData container
+FlowFit/
+├── FlowFitApp.swift             # App entry, SwiftData container
 ├── Models/                       # Raw layer (ground truth)
 │   ├── UserProfile.swift         # Profile, styles, equipment, hard limits
 │   ├── TrainingBlock.swift       # Weekly plan + LLM block contract
@@ -113,7 +113,7 @@ AdaptFit/
     ├── WikiView.swift            # Coach's Notes: edit, restore, rebuild
     ├── HistoryView.swift         # Past workouts
     └── SettingsView.swift        # Provider/key, profile, hard limits
-AdaptFitTests/                    # Parsers, prompts, validator, wiki budgets
+FlowFitTests/                    # Parsers, prompts, validator, wiki budgets
 ```
 
 ## Roadmap

@@ -4,7 +4,7 @@ import XCTest
 /// onboarding → plan week → check-in → workout → adjust → chat →
 /// feedback → history → Coach's Notes. Screenshots are attached at
 /// every screen (kept always) so CI artifacts show the whole app.
-final class AdaptFitUITests: XCTestCase {
+final class FlowFitUITests: XCTestCase {
     private var app: XCUIApplication!
 
     override func setUpWithError() throws {

@@ -117,7 +117,7 @@ struct SettingsView: View {
                 .themedRow()
 
                 Section {
-                    Text("AdaptFit generates workout suggestions with AI and is not a substitute for medical or professional advice. Stop any exercise that causes pain and consult your doctor about your training program.")
+                    Text("FlowFit generates workout suggestions with AI and is not a substitute for medical or professional advice. Stop any exercise that causes pain and consult your doctor about your training program.")
                         .font(.footnote)
                         .foregroundStyle(Color.appTextSecondary)
                 }

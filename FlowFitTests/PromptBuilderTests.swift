@@ -1,5 +1,5 @@
 import XCTest
-@testable import AdaptFit
+@testable import FlowFit
 
 final class PromptBuilderTests: XCTestCase {
     private func makeProfile() -> UserProfile {

@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct AdaptFitApp: App {
+struct FlowFitApp: App {
     init() {
         Theme.configureAppearance()
     }
