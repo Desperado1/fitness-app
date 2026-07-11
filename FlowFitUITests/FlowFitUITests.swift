@@ -40,7 +40,7 @@ final class FlowFitUITests: XCTestCase {
 
     /// Taps an element after making sure it's on screen, scrolling a
     /// bounded number of times if needed (Form content can be off-screen).
-    private func scrollToAndTap(_ element: XCUIElement, attempts: Int = 6) {
+    private func scrollToAndTap(_ element: XCUIElement, attempts: Int = 10) {
         var remaining = attempts
         while !(element.exists && element.isHittable) && remaining > 0 {
             app.swipeUp()

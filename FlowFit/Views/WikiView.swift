@@ -17,33 +17,40 @@ struct WikiView: View {
     private var wiki: WikiStore { WikiStore(context: context) }
 
     var body: some View {
-        List {
-            Section {
-                Text("Your coach keeps these notes and reads them before every plan, workout, and chat. Edit anything that's wrong — the coach will follow your version.")
-                    .font(.footnote)
-                    .foregroundStyle(Color.appTextSecondary)
-            }
-            .themedRow()
+        Screen {
+            Text("Your coach keeps these notes and reads them before every plan, workout, and chat. Edit anything that's wrong — the coach will follow your version.")
+                .font(.footnote)
+                .foregroundStyle(Color.appTextSecondary)
 
-            Section("Pages") {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeader(title: "Pages")
                 ForEach(wiki.allPages()) { page in
                     NavigationLink {
                         WikiPageEditor(page: page, store: wiki)
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(WikiSlug(rawValue: page.slug)?.title ?? page.slug)
-                                .font(.headline)
-                                .foregroundStyle(Color.appTextPrimary)
-                            Text("Updated \(page.updatedAt.formatted(date: .abbreviated, time: .shortened))")
-                                .font(.caption)
-                                .foregroundStyle(Color.appTextSecondary)
+                        Card {
+                            HStack(spacing: 12) {
+                                IconWell(systemName: "doc.text")
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(WikiSlug(rawValue: page.slug)?.title ?? page.slug)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(Color.appTextPrimary)
+                                    Text("Updated \(page.updatedAt.formatted(date: .abbreviated, time: .shortened))")
+                                        .font(.caption)
+                                        .foregroundStyle(Color.appTextSecondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Color.appIconInactive)
+                            }
                         }
                     }
+                    .buttonStyle(.plain)
                 }
             }
-            .themedRow()
 
-            Section {
+            VStack(alignment: .leading, spacing: 10) {
                 Button {
                     showRebuildConfirmation = true
                 } label: {
@@ -52,28 +59,26 @@ struct WikiView: View {
                             ProgressView()
                             Text("Rebuilding from history…")
                         }
-                        .frame(maxWidth: .infinity)
                     } else {
                         Label("Rebuild from history", systemImage: "arrow.counterclockwise")
-                            .frame(maxWidth: .infinity)
                     }
                 }
+                .buttonStyle(.primaryAction)
                 .disabled(isRebuilding)
-            } footer: {
-                Group {
-                    if let rebuiltAt {
-                        Text("Rebuilt \(rebuiltAt.formatted(date: .omitted, time: .shortened)). Previous versions are kept in each page's history.")
-                    } else {
-                        Text("Regenerates every page from your raw workout log. Use this if the notes have drifted or bloated — your workout history itself is never touched.")
-                    }
+
+                if let rebuiltAt {
+                    Text("Rebuilt \(rebuiltAt.formatted(date: .omitted, time: .shortened)). Previous versions are kept in each page's history.")
+                        .font(.caption)
+                        .foregroundStyle(Color.appTextSecondary)
+                } else {
+                    Text("Regenerates every page from your raw workout log. Use this if the notes have drifted or bloated — your workout history itself is never touched.")
+                        .font(.caption)
+                        .foregroundStyle(Color.appTextSecondary)
                 }
-                .foregroundStyle(Color.appTextSecondary)
             }
-            .themedRow()
         }
-        .listSectionSpacing(24)
-        .themedScreen()
         .navigationTitle("Coach's Notes")
+        .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
             "Rebuild all pages from workout history?",
             isPresented: $showRebuildConfirmation,
@@ -121,43 +126,46 @@ private struct WikiPageEditor: View {
     @State private var contentOnAppear = ""
 
     var body: some View {
-        Form {
-            Section {
+        Screen {
+            Card {
                 TextEditor(text: $page.content)
                     .font(.body.monospaced())
                     .foregroundStyle(Color.appTextPrimary)
                     .scrollContentBackground(.hidden)
-                    .frame(minHeight: 260)
+                    .frame(minHeight: 280)
                     .autocorrectionDisabled()
-            } footer: {
-                if let slug = WikiSlug(rawValue: page.slug) {
-                    Text(slug.purpose)
-                        .foregroundStyle(Color.appTextSecondary)
-                }
             }
-            .themedRow()
+
+            if let slug = WikiSlug(rawValue: page.slug) {
+                Text(slug.purpose)
+                    .font(.caption)
+                    .foregroundStyle(Color.appTextSecondary)
+            }
 
             if !page.snapshots.isEmpty {
-                Section("Previous versions") {
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionHeader(title: "Previous versions")
                     ForEach(Array(page.snapshots.enumerated()), id: \.offset) { _, snapshot in
                         Button {
                             store.restore(page: page, snapshot: snapshot)
                         } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Restore version from \(snapshot.savedAt.formatted(date: .abbreviated, time: .shortened))")
-                                Text(snapshot.content)
-                                    .font(.caption)
-                                    .foregroundStyle(Color.appTextSecondary)
-                                    .lineLimit(2)
+                            Card {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Restore version from \(snapshot.savedAt.formatted(date: .abbreviated, time: .shortened))")
+                                        .font(.footnote.weight(.medium))
+                                        .foregroundStyle(Color.appAccent)
+                                    Text(snapshot.content)
+                                        .font(.caption)
+                                        .foregroundStyle(Color.appTextSecondary)
+                                        .lineLimit(2)
+                                }
                             }
                         }
+                        .buttonStyle(.plain)
                     }
                 }
-                .themedRow()
             }
         }
-        .listSectionSpacing(24)
-        .themedScreen()
         .navigationTitle(WikiSlug(rawValue: page.slug)?.title ?? page.slug)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {

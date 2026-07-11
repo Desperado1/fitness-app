@@ -120,10 +120,10 @@ struct ChatView: View {
                     message.role == .user
                         ? AnyShapeStyle(Color.appAccent.opacity(0.22))
                         : AnyShapeStyle(Color.appSurface),
-                    in: RoundedRectangle(cornerRadius: 14)
+                    in: RoundedRectangle(cornerRadius: 16)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 16)
                         .stroke(Color.appBorder, lineWidth: message.role == .assistant ? 1 : 0)
                 )
             if message.role == .assistant { Spacer(minLength: 40) }

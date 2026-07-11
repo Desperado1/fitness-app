@@ -259,14 +259,21 @@ struct LabeledField: View {
     let label: String
     let placeholder: String
     @Binding var text: String
+    /// Single-line fields dismiss the keyboard on return.
+    var multiline = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Color.appTextSecondary)
-            TextField(placeholder, text: $text, axis: .vertical)
-                .foregroundStyle(Color.appTextPrimary)
+            if multiline {
+                TextField(placeholder, text: $text, axis: .vertical)
+                    .foregroundStyle(Color.appTextPrimary)
+            } else {
+                TextField(placeholder, text: $text)
+                    .foregroundStyle(Color.appTextPrimary)
+            }
         }
     }
 }
