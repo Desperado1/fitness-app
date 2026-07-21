@@ -49,3 +49,19 @@ Issues and improvements noted during testing, to pick up in future tasks.
 - **Notes:** Keeps analysis lightweight and privacy-friendly (only derived
   text/coordinates leave the device, not the video). Consider on-device
   processing with periodic snapshots of the pose data during a set.
+
+### 7. Warn the user when DeepSeek credits are running low
+- **Problem:** Users supply their own DeepSeek API key, but there's no way for
+  them to know when their credits are about to run out — AI features would just
+  start failing.
+- **Approach (proactive):** Query DeepSeek's balance endpoint
+  (`GET https://api.deepseek.com/user/balance`, `Authorization: Bearer <key>`),
+  which returns `is_available` and `balance_infos` (total/granted/topped-up
+  balance). Show remaining balance in Settings and warn when it falls below a
+  threshold or when `is_available` becomes false.
+- **Approach (reactive fallback):** Detect the insufficient-balance error
+  (HTTP 402) from the chat API and show a clear, actionable message ("DeepSeek
+  credits exhausted — top up to keep using AI features") instead of a generic
+  failure, so a mid-workout request doesn't fail silently.
+- **Notes:** Ideally do both — a balance indicator + low-balance warning, plus
+  graceful 402 handling.
