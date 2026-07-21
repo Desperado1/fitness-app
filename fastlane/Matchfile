@@ -11,4 +11,4 @@
 git_url(ENV["MATCH_GIT_URL"])
 storage_mode("git")
 type("appstore")
-app_identifier(["com.flowfit.app"])
+app_identifier(["com.flowwfit.app"])

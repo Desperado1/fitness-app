@@ -1,6 +1,6 @@
 default_platform(:ios)
 
-APP_IDENTIFIER = "com.flowfit.app".freeze
+APP_IDENTIFIER = "com.flowwfit.app".freeze
 
 # App Store Connect API key auth — no Apple ID password, no 2FA prompts.
 # ASC_KEY_CONTENT is the base64 of the .p8 file you downloaded from

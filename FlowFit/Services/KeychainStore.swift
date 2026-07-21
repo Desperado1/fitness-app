@@ -3,7 +3,7 @@ import Security
 
 /// Minimal Keychain wrapper for storing the LLM API key on-device.
 enum KeychainStore {
-    private static let service = "com.flowfit.app"
+    private static let service = "com.flowwfit.app"
 
     static func save(_ value: String, for account: String) {
         let data = Data(value.utf8)
