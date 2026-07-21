@@ -32,3 +32,10 @@ Issues and improvements noted during testing, to pick up in future tasks.
   and once skipped there is no way to resume it.
 - **Expected:** Provide a way to recreate/regenerate today's workout, and allow
   resuming a workout after it has been skipped (skip should not be a dead end).
+
+### 5. Start a workout from the Week page (and sync to Today)
+- **Observed:** Workouts can't be started directly from the Week page.
+- **Expected:** Allow starting a workout from the Week page itself, for every
+  workout in the week (not just today's). When a workout is started from there,
+  that state should reflect on the Today page as well (the two views should stay
+  in sync).
