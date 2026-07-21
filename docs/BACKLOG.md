@@ -65,3 +65,16 @@ Issues and improvements noted during testing, to pick up in future tasks.
   failure, so a mid-workout request doesn't fail silently.
 - **Notes:** Ideally do both — a balance indicator + low-balance warning, plus
   graceful 402 handling.
+
+### 8. Voice input for the coach and for logging workouts
+- **Idea:** Offer a voice option wherever possible — both for talking to the
+  coach and for logging a workout by speaking.
+- **Example:** Saying "completed 3 sets of deadlifts of 8 reps with 50, 70 and
+  100 kg" should be parsed into structured sets/reps/weight and logged for that
+  exercise.
+- **Approach:** Use speech-to-text (e.g. Apple's Speech framework / on-device
+  dictation) to capture the utterance, then have the LLM parse it into
+  structured workout data (exercise, sets, reps, per-set weight) before saving.
+  Add a mic affordance on the coach chat and on the workout-logging screens.
+- **Notes:** Confirm the parsed result to the user before saving so
+  mis-transcriptions can be corrected.
