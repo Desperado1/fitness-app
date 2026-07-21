@@ -1,0 +1,14 @@
+# match stores the signing certificate + provisioning profile (encrypted) in a
+# small PRIVATE git repo so every CI run reuses the SAME certificate. Apple caps
+# how many distribution certificates an account may hold, so this shared store is
+# what makes repeatable, Mac-free builds possible.
+#
+# All values come from GitHub secrets at runtime (see docs/TESTFLIGHT.md):
+#   MATCH_GIT_URL                   -> git_url below
+#   MATCH_PASSWORD                  -> decryption passphrase (read by match)
+#   MATCH_GIT_BASIC_AUTHORIZATION   -> base64 "user:PAT" to clone the private store
+
+git_url(ENV["MATCH_GIT_URL"])
+storage_mode("git")
+type("appstore")
+app_identifier(["com.flowfit.app"])
