@@ -1,0 +1,47 @@
+name: TestFlight
+
+# Manual: build a signed Release IPA and ship it to TestFlight.
+# Prerequisite: the one-time secret setup in docs/TESTFLIGHT.md.
+on:
+  workflow_dispatch:
+
+jobs:
+  testflight:
+    name: Build and upload to TestFlight
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Set up Ruby + fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Build and upload
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: bundle exec fastlane beta
+
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlowFit-ipa
+          path: FlowFit.ipa
+          if-no-files-found: ignore
+          retention-days: 90

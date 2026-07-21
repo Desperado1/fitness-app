@@ -79,6 +79,15 @@ The **Build IPA** workflow produces an unsigned `FlowFit.ipa`; [AltStore](https:
 - App data (profile, workout history, coach's notes, the API key in the Keychain) survives refreshes and reinstalls of the same app; it's lost only if you delete the app.
 - If the trial sticks, the upgrade path is TestFlight via the Apple Developer Program ($99/yr): no PC, no weekly refresh, easy installs for your wife's phone too.
 
+## Install on your iPhone (TestFlight, paid account, no Mac)
+
+With a paid **Apple Developer Program** membership, the **TestFlight** workflow
+(`.github/workflows/testflight.yml`) builds a signed IPA on a cloud macOS runner
+and uploads it straight to TestFlight — installs are over-the-air, builds last 90
+days (no weekly refresh), and you can add other testers by email. After a one-time
+secret setup, shipping a build is one click: **Actions → TestFlight → Run
+workflow**. Full setup steps: [`docs/TESTFLIGHT.md`](docs/TESTFLIGHT.md).
+
 ## Configuring the AI coach
 
 1. Get an API key from [DeepSeek](https://platform.deepseek.com) or [Alibaba Cloud Model Studio (Qwen)](https://modelstudio.console.alibabacloud.com).

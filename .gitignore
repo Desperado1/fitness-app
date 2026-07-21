@@ -11,5 +11,12 @@ DerivedData/
 # Swift Package Manager
 Package.resolved
 
+# fastlane / build output
+*.ipa
+*.xcarchive
+fastlane/report.xml
+fastlane/README.md
+fastlane/test_output/
+
 # macOS
 .DS_Store

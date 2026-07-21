@@ -1,0 +1,4 @@
+app_identifier("com.flowfit.app")
+# Apple Developer team + App Store Connect team are resolved automatically
+# from the App Store Connect API key (see fastlane/Fastfile). No Apple ID
+# password or 2FA is needed in CI.
