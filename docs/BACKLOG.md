@@ -39,3 +39,13 @@ Issues and improvements noted during testing, to pick up in future tasks.
   workout in the week (not just today's). When a workout is started from there,
   that state should reflect on the Today page as well (the two views should stay
   in sync).
+
+### 6. Exercise form analysis via camera (future enhancement)
+- **Idea:** Analyze the user's exercise form using the camera.
+- **Approach:** Use the Apple camera with on-device body-pose detection (Vision
+  framework provides joint positions and can derive limb angles). Capture that
+  pose data (joints, angles, etc.) as text, then send it to the LLM for form
+  analysis and feedback — rather than uploading raw video.
+- **Notes:** Keeps analysis lightweight and privacy-friendly (only derived
+  text/coordinates leave the device, not the video). Consider on-device
+  processing with periodic snapshots of the pose data during a set.
