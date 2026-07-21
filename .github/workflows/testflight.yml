@@ -18,6 +18,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # App Store Connect rejects binaries built with an SDK older than iOS 26.
+      # The runner ships several Xcodes; pick the newest so we get the iOS 26+
+      # SDK instead of the default (older) Xcode.
+      - name: Select latest Xcode
+        run: |
+          latest=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          echo "Selecting $latest"
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
