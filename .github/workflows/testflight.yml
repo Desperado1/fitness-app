@@ -1,9 +1,13 @@
 name: TestFlight
 
-# Manual: build a signed Release IPA and ship it to TestFlight.
-# Prerequisite: the one-time secret setup in docs/TESTFLIGHT.md.
+# Build a signed Release IPA and ship it to TestFlight.
+# Runs automatically on merge to the main branch, or manually from the
+# Actions tab. Prerequisite: the one-time secret setup in docs/TESTFLIGHT.md.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - claude/ai-workout-app-ios-h15vrm
 
 jobs:
   testflight:
