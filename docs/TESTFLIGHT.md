@@ -39,11 +39,11 @@ that storage repo once; after that it's automatic.
 
 1. Still in App Store Connect → **My Apps** → **+** → **New App**.
 2. Platform **iOS**, pick a name (e.g. `FlowFit`), primary language, Bundle ID
-   **`com.flowfit.app`**, and any SKU (e.g. `flowfit`).
-   - If `com.flowfit.app` isn't in the Bundle ID dropdown, first register it at
+   **`com.flowwfit.app`**, and any SKU (e.g. `flowfit`).
+   - If `com.flowwfit.app` isn't in the Bundle ID dropdown, first register it at
      <https://developer.apple.com/account/resources/identifiers/list> →
      **+** → **App IDs** → **App** → description `FlowFit`, Bundle ID (explicit)
-     `com.flowfit.app` → Continue → Register. Then come back and create the app.
+     `com.flowwfit.app` → Continue → Register. Then come back and create the app.
 
 ### 3. Private repo to store the signing certificate
 
@@ -116,7 +116,7 @@ Apple review**. That's all you need for you + your wife.
 - **`Authentication credentials … invalid` / match can't clone:** re-check
   `MATCH_GIT_URL` (must end in `.git`) and `MATCH_GIT_BASIC_AUTHORIZATION`
   (base64 of `username:PAT`, PAT has Contents write on the certs repo).
-- **`No profiles for 'com.flowfit.app'` / signing errors:** make sure the Bundle
+- **`No profiles for 'com.flowwfit.app'` / signing errors:** make sure the Bundle
   ID is registered (step 2) and the API key role is **App Manager** or Admin.
 - **Upload rejected — duplicate build number:** shouldn't happen (run number is
   monotonic), but if you re-run an old run, just start a fresh run.
