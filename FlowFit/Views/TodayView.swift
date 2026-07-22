@@ -5,6 +5,7 @@ struct TodayView: View {
     let profile: UserProfile
 
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Workout.date, order: .reverse) private var workouts: [Workout]
     @Query(sort: \TrainingBlock.createdAt, order: .reverse) private var blocks: [TrainingBlock]
 
@@ -13,9 +14,14 @@ struct TodayView: View {
     @State private var checkIn = DailyCheckIn()
     @State private var isGenerating = false
     @State private var errorMessage: String?
+    /// Anchor for "today". The current date is not a reactive dependency, so
+    /// without this the view would keep showing yesterday's workout after the
+    /// day rolls over while the app was backgrounded. Refreshed on foreground
+    /// and at midnight (see the scene-phase / day-change handlers below).
+    @State private var today = Date()
 
     private var todaysWorkout: Workout? {
-        workouts.first { Calendar.current.isDateInToday($0.date) }
+        workouts.first { Calendar.current.isDate($0.date, inSameDayAs: today) }
     }
 
     private var activeBlock: TrainingBlock? {
@@ -40,6 +46,15 @@ struct TodayView: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+        }
+        // Re-anchor "today" when the app returns to the foreground and when the
+        // calendar day changes while open, so a rolled-over day surfaces the
+        // check-in screen instead of freezing on the previous day's workout.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { today = Date() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            today = Date()
         }
     }
 
