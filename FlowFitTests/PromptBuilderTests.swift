@@ -64,6 +64,44 @@ final class PromptBuilderTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Goblet variations"))
     }
 
+    func testModulatorPromptRequestsAlternativeWhenAvoiding() {
+        let previous = GeneratedWorkout(
+            title: "Steady Strength",
+            style: "weightlifting",
+            intensity: "moderate",
+            durationMinutes: 30,
+            warmup: [],
+            exercises: [
+                PrescribedExercise(name: "Goblet Squat", sets: 3, reps: "8-10", weight: "12 kg", restSeconds: 90, notes: nil),
+                PrescribedExercise(name: "Glute Bridge", sets: 3, reps: "12", weight: nil, restSeconds: 60, notes: nil),
+            ],
+            cooldown: [],
+            coachNote: "",
+            safetyNote: ""
+        )
+        let prompt = CoachService.modulatorUserPrompt(
+            profile: makeProfile(),
+            wikiContext: "",
+            session: nil,
+            checkIn: DailyCheckIn(),
+            avoiding: previous
+        )
+        XCTAssertTrue(prompt.contains("DIFFERENT ALTERNATIVE"))
+        XCTAssertTrue(prompt.contains("Steady Strength"))
+        XCTAssertTrue(prompt.contains("Goblet Squat"))
+        XCTAssertTrue(prompt.contains("Glute Bridge"))
+    }
+
+    func testModulatorPromptOmitsAlternativeSectionByDefault() {
+        let prompt = CoachService.modulatorUserPrompt(
+            profile: makeProfile(),
+            wikiContext: "",
+            session: nil,
+            checkIn: DailyCheckIn()
+        )
+        XCTAssertFalse(prompt.contains("DIFFERENT ALTERNATIVE"))
+    }
+
     func testPlannerPromptStatesSessionCountAndHistory() {
         let prompt = CoachService.plannerUserPrompt(
             profile: makeProfile(),

@@ -14,7 +14,8 @@ struct MockLLMClient: LLMCompleting {
             return Self.blockJSON
         }
         if system.contains("TODAY'S concrete workout") {
-            return Self.workoutJSON
+            let user = messages.first(where: { $0.role == "user" })?.content ?? ""
+            return user.contains("DIFFERENT ALTERNATIVE") ? Self.alternativeWorkoutJSON : Self.workoutJSON
         }
         if system.contains("chatting with the client") {
             return Self.chatJSON
@@ -83,6 +84,27 @@ struct MockLLMClient: LLMCompleting {
       "cooldown": ["Hamstring stretch", "Deep breathing, 1 min"],
       "coachNote": "Energy looked steady today, so we run the planned strength work with one accessory trimmed to fit your time.",
       "safetyNote": "Keep breathing steadily through every rep and stop if anything pinches or feels off."
+    }
+    """
+
+    /// Returned when the modulator is asked for a different alternative
+    /// (the "try a different workout" regeneration). Distinct title and
+    /// exercises from workoutJSON so the change is visible.
+    static let alternativeWorkoutJSON = """
+    {
+      "title": "Gentle Mobility Flow",
+      "style": "recovery",
+      "intensity": "low",
+      "durationMinutes": 30,
+      "warmup": ["3 min easy march in place", "Cat-cow x8"],
+      "exercises": [
+        {"name": "Bodyweight Good Morning", "sets": 3, "reps": "10", "weight": null, "restSeconds": 45, "notes": "Soft knees, flat back"},
+        {"name": "Bird Dog", "sets": 3, "reps": "8 per side", "weight": null, "restSeconds": 45, "notes": "Slow and controlled"},
+        {"name": "Band Pull-apart", "sets": 3, "reps": "15", "weight": "light band", "restSeconds": 45, "notes": null}
+      ],
+      "cooldown": ["Child's pose, 1 min", "Box breathing, 1 min"],
+      "coachNote": "Here's a lighter, mobility-focused take on today — same time, easier on the joints.",
+      "safetyNote": "Move within a comfortable range and stop if anything pinches."
     }
     """
 

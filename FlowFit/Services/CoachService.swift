@@ -41,15 +41,20 @@ struct CoachService {
     /// Turns today's planned session (or nothing, for a one-off quick
     /// workout) into a concrete workout. Applies code-level guardrails,
     /// retrying once with the violations fed back before giving up.
+    ///
+    /// Pass `avoiding` with the current workout to ask for a genuinely
+    /// different alternative for the same day — this powers the "try a
+    /// different workout" one-tap regeneration.
     func generateWorkout(
         profile: UserProfile,
         wikiContext: String,
         session: PlannedSession?,
-        checkIn: DailyCheckIn
+        checkIn: DailyCheckIn,
+        avoiding previousWorkout: GeneratedWorkout? = nil
     ) async throws -> GeneratedWorkout {
         var messages: [LLMMessage] = [
             .system(Self.modulatorSystemPrompt),
-            .user(Self.modulatorUserPrompt(profile: profile, wikiContext: wikiContext, session: session, checkIn: checkIn)),
+            .user(Self.modulatorUserPrompt(profile: profile, wikiContext: wikiContext, session: session, checkIn: checkIn, avoiding: previousWorkout)),
         ]
 
         let firstRaw = try await client.complete(messages: messages)
@@ -271,7 +276,8 @@ struct CoachService {
         profile: UserProfile,
         wikiContext: String,
         session: PlannedSession?,
-        checkIn: DailyCheckIn
+        checkIn: DailyCheckIn,
+        avoiding previousWorkout: GeneratedWorkout? = nil
     ) -> String {
         var lines: [String] = []
         lines.append("COACH'S MEMORY (wiki)")
@@ -301,6 +307,15 @@ struct CoachService {
         lines.append("Time available: \(checkIn.minutesAvailable) minutes")
         if let preferred = checkIn.preferredStyle {
             lines.append("Requested style for today: \(preferred.rawValue)")
+        }
+        if let previous = previousWorkout {
+            lines.append("")
+            lines.append("REGENERATE — DIFFERENT ALTERNATIVE")
+            lines.append("The client has this workout already and wants a different option for today. Keep the same intent, constraints, energy, venue, and time budget, but vary the exercise selection and structure so it feels like a genuinely fresh alternative — do not simply repeat the one below.")
+            lines.append("Previous workout to differ from: \(previous.title) [\(previous.style), \(previous.intensity), \(previous.durationMinutes) min]")
+            for exercise in previous.exercises {
+                lines.append("- \(exercise.name)")
+            }
         }
         lines.append("")
         lines.append("Produce today's workout now. Return only the JSON object.")

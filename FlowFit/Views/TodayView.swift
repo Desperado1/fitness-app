@@ -32,7 +32,7 @@ struct TodayView: View {
         NavigationStack {
             Group {
                 if let workout = todaysWorkout {
-                    WorkoutDetailView(workout: workout, profile: profile)
+                    WorkoutDetailView(workout: workout, profile: profile, canRegenerate: true)
                 } else {
                     checkInScreen
                         .toolbar(.hidden, for: .navigationBar)
