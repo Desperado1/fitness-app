@@ -1,6 +1,20 @@
 import SwiftUI
 import SwiftData
 
+/// How a planned session reads in the Plan list: still to do, done, or skipped.
+enum PlannedSessionState {
+    case pending, done, skipped
+
+    /// Overrides the session's style symbol; nil keeps the style icon.
+    var iconName: String? {
+        switch self {
+        case .pending: return nil
+        case .done: return "checkmark"
+        case .skipped: return "xmark"
+        }
+    }
+}
+
 struct PlanView: View {
     let profile: UserProfile
 
@@ -38,12 +52,14 @@ struct PlanView: View {
                         ThinProgressBar(
                             progress: block.sessions.isEmpty
                                 ? 0
-                                : Double(block.completedSessionIndices.count) / Double(block.sessions.count)
+                                : Double(block.resolvedSessionCount) / Double(block.sessions.count)
                         )
                         HStack {
                             Text("Started \(block.startDate.formatted(date: .abbreviated, time: .omitted))")
                             Spacer()
-                            Text("\(block.completedSessionIndices.count)/\(block.sessions.count) done")
+                            Text(block.skippedSessionIndices.isEmpty
+                                ? "\(block.completedSessionIndices.count)/\(block.sessions.count) done"
+                                : "\(block.completedSessionIndices.count) done · \(block.skippedSessionIndices.count) skipped")
                         }
                         .font(.caption)
                         .foregroundStyle(Color.appTextSecondary)
@@ -52,7 +68,10 @@ struct PlanView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         SectionHeader(title: "Sessions")
                         ForEach(block.sessions) { session in
-                            sessionCard(session, done: block.completedSessionIndices.contains(session.index))
+                            let state: PlannedSessionState = block.completedSessionIndices.contains(session.index)
+                                ? .done
+                                : block.skippedSessionIndices.contains(session.index) ? .skipped : .pending
+                            sessionCard(session, state: state)
                         }
                     }
                 } else {
@@ -114,7 +133,7 @@ struct PlanView: View {
         }
     }
 
-    private func sessionCard(_ session: PlannedSession, done: Bool) -> some View {
+    private func sessionCard(_ session: PlannedSession, state: PlannedSessionState) -> some View {
         Card {
             Button {
                 withAnimation(.easeOut(duration: 0.2)) {
@@ -127,13 +146,23 @@ struct PlanView: View {
             } label: {
                 HStack(spacing: 12) {
                     IconWell(
-                        systemName: done ? "checkmark" : session.trainingStyle.symbol,
-                        active: done
+                        systemName: state.iconName ?? session.trainingStyle.symbol,
+                        active: state == .done
                     )
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(session.focus)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color.appTextPrimary)
+                        HStack(spacing: 6) {
+                            Text(session.focus)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.appTextPrimary)
+                            if state == .skipped {
+                                Text("Skipped")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Color.appTextSecondary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.appBorder, in: Capsule())
+                            }
+                        }
                         Text("\(session.trainingStyle.displayName) · \(session.durationMinutes) min")
                             .font(.caption)
                             .foregroundStyle(Color.appTextSecondary)

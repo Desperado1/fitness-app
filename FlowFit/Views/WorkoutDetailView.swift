@@ -139,7 +139,7 @@ struct WorkoutDetailView: View {
                     }
 
                     Button("Skip today") {
-                        workout.status = .skipped
+                        skip()
                     }
                     .buttonStyle(.ghost)
                     .disabled(isRegenerating)
@@ -206,13 +206,25 @@ struct WorkoutDetailView: View {
         }
     }
 
+    private func activeBlock() -> TrainingBlock? {
+        let blocks = (try? context.fetch(FetchDescriptor<TrainingBlock>())) ?? []
+        return blocks.first { $0.status == .active }
+    }
+
     /// The planned session this workout realized, if any — so the alternative
     /// keeps the same weekly-plan intent and progression targets.
     private func plannedSession() -> PlannedSession? {
         guard let index = workout.blockSessionIndex else { return nil }
-        let blocks = (try? context.fetch(FetchDescriptor<TrainingBlock>())) ?? []
-        let active = blocks.first { $0.status == .active }
-        return active?.sessions.first { $0.index == index }
+        return activeBlock()?.sessions.first { $0.index == index }
+    }
+
+    /// Skip today's session and advance the weekly plan past it, so tomorrow
+    /// surfaces the next session instead of re-offering this one.
+    private func skip() {
+        workout.status = .skipped
+        if let index = workout.blockSessionIndex {
+            activeBlock()?.markSessionSkipped(index)
+        }
     }
 
     /// Re-run the modulator with the same check-in but asking for a genuinely
