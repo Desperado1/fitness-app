@@ -169,6 +169,7 @@ struct PillToggle<T: Hashable>: View {
         .padding(4)
         .background(Color.appSurface, in: Capsule())
         .overlay(Capsule().stroke(Color.appBorder, lineWidth: 1))
+        .sensoryFeedback(.selection, trigger: selection)
     }
 }
 
@@ -220,6 +221,7 @@ struct CapsuleStepper: View {
             Spacer()
             stepButton("plus") { value = min(range.upperBound, value + step) }
         }
+        .sensoryFeedback(.selection, trigger: value)
     }
 
     private func stepButton(_ symbol: String, action: @escaping () -> Void) -> some View {
@@ -248,6 +250,7 @@ struct ThinProgressBar: View {
                 Capsule()
                     .fill(Color.appAccent)
                     .frame(width: max(0, min(1, progress)) * geo.size.width)
+                    .animation(.easeOut(duration: 0.35), value: progress)
             }
         }
         .frame(height: 6)
@@ -286,6 +289,8 @@ struct GhostButtonStyle: ButtonStyle {
             .foregroundStyle(Color.appTextSecondary.opacity(configuration.isPressed ? 0.6 : 1))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 

@@ -204,7 +204,14 @@ struct WorkoutDetailView: View {
         } message: {
             Text(regenerateError ?? "")
         }
-    }
+        // A success tap when the session is finished, a soft one when skipped.
+        .sensoryFeedback(trigger: workout.status) { _, status in
+            switch status {
+            case .completed: return .success
+            case .skipped: return .impact(weight: .light)
+            case .planned: return nil
+            }
+        }
 
     private func activeBlock() -> TrainingBlock? {
         let blocks = (try? context.fetch(FetchDescriptor<TrainingBlock>())) ?? []

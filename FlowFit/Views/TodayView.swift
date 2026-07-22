@@ -111,7 +111,7 @@ struct TodayView: View {
                 HStack(spacing: 10) {
                     ForEach(EnergyLevel.allCases) { level in
                         Button {
-                            checkIn.energy = level
+                            withAnimation(.easeOut(duration: 0.15)) { checkIn.energy = level }
                         } label: {
                             OptionCard(
                                 emoji: level.emoji,
@@ -124,6 +124,7 @@ struct TodayView: View {
                         .accessibilityIdentifier("energy-\(level.rawValue)")
                     }
                 }
+                .sensoryFeedback(.selection, trigger: checkIn.energy)
             }
 
             VStack(alignment: .leading, spacing: 10) {
@@ -155,7 +156,7 @@ struct TodayView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         Button {
-                            checkIn.preferredStyle = nil
+                            withAnimation(.easeOut(duration: 0.15)) { checkIn.preferredStyle = nil }
                         } label: {
                             Chip(label: "Coach's choice", systemImage: "sparkles", selected: checkIn.preferredStyle == nil)
                         }
@@ -164,7 +165,7 @@ struct TodayView: View {
 
                         ForEach(profile.allowedStyles) { style in
                             Button {
-                                checkIn.preferredStyle = style
+                                withAnimation(.easeOut(duration: 0.15)) { checkIn.preferredStyle = style }
                             } label: {
                                 Chip(label: style.displayName, systemImage: style.symbol, selected: checkIn.preferredStyle == style)
                             }
@@ -173,6 +174,7 @@ struct TodayView: View {
                         }
                     }
                 }
+                .sensoryFeedback(.selection, trigger: checkIn.preferredStyle)
             }
 
             Button {

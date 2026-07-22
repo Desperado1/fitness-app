@@ -68,6 +68,8 @@ struct PrimaryActionButtonStyle: ButtonStyle {
                 Color.appAccent.opacity(configuration.isPressed ? 0.75 : (isEnabled ? 1 : 0.35)),
                 in: Capsule()
             )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 

@@ -30,20 +30,23 @@ struct FeedbackSheet: View {
                         HStack {
                             ForEach(1...5, id: \.self) { value in
                                 Button {
-                                    rating = value
+                                    withAnimation(.easeOut(duration: 0.15)) { rating = value }
                                 } label: {
                                     Image(systemName: value <= rating ? "star.fill" : "star")
                                         .font(.title)
                                         .foregroundStyle(value <= rating ? Color.appAccent : Color.appIconInactive)
+                                        .scaleEffect(value == rating ? 1.15 : 1)
                                 }
                                 .buttonStyle(.plain)
                                 .frame(maxWidth: .infinity)
                             }
                         }
+                        .sensoryFeedback(.selection, trigger: rating)
                         Text(labels[rating] ?? "")
                             .frame(maxWidth: .infinity)
                             .font(.headline)
                             .foregroundStyle(Color.appTextPrimary)
+                            .contentTransition(.opacity)
                     }
                 }
 
