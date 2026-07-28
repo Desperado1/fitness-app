@@ -133,3 +133,5 @@ FlowFitTests/                    # Parsers, prompts, validator, wiki budgets
 - [ ] Cycle-aware planning for PCOD
 - [ ] Multiple profiles / clients
 - [ ] Optional HealthKit export
+- [ ] Voice mode: talk to the coach hands-free (speech-to-text in, spoken replies)
+- [ ] Exercise demos: show how to perform each movement (form cues, image or short clip)
