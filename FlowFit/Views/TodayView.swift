@@ -5,6 +5,7 @@ struct TodayView: View {
     let profile: UserProfile
 
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Workout.date, order: .reverse) private var workouts: [Workout]
     @Query(sort: \TrainingBlock.createdAt, order: .reverse) private var blocks: [TrainingBlock]
 
@@ -13,9 +14,14 @@ struct TodayView: View {
     @State private var checkIn = DailyCheckIn()
     @State private var isGenerating = false
     @State private var errorMessage: String?
+    /// Anchor for "today". The current date is not a reactive dependency, so
+    /// without this the view would keep showing yesterday's workout after the
+    /// day rolls over while the app was backgrounded. Refreshed on foreground
+    /// and at midnight (see the scene-phase / day-change handlers below).
+    @State private var today = Date()
 
     private var todaysWorkout: Workout? {
-        workouts.first { Calendar.current.isDateInToday($0.date) }
+        workouts.first { Calendar.current.isDate($0.date, inSameDayAs: today) }
     }
 
     private var activeBlock: TrainingBlock? {
@@ -26,7 +32,7 @@ struct TodayView: View {
         NavigationStack {
             Group {
                 if let workout = todaysWorkout {
-                    WorkoutDetailView(workout: workout, profile: profile)
+                    WorkoutDetailView(workout: workout, profile: profile, canRegenerate: true)
                 } else {
                     checkInScreen
                         .toolbar(.hidden, for: .navigationBar)
@@ -40,6 +46,15 @@ struct TodayView: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+        }
+        // Re-anchor "today" when the app returns to the foreground and when the
+        // calendar day changes while open, so a rolled-over day surfaces the
+        // check-in screen instead of freezing on the previous day's workout.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { today = Date() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            today = Date()
         }
     }
 
@@ -96,7 +111,7 @@ struct TodayView: View {
                 HStack(spacing: 10) {
                     ForEach(EnergyLevel.allCases) { level in
                         Button {
-                            checkIn.energy = level
+                            withAnimation(.easeOut(duration: 0.15)) { checkIn.energy = level }
                         } label: {
                             OptionCard(
                                 emoji: level.emoji,
@@ -109,6 +124,7 @@ struct TodayView: View {
                         .accessibilityIdentifier("energy-\(level.rawValue)")
                     }
                 }
+                .sensoryFeedback(.selection, trigger: checkIn.energy)
             }
 
             VStack(alignment: .leading, spacing: 10) {
@@ -140,7 +156,7 @@ struct TodayView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         Button {
-                            checkIn.preferredStyle = nil
+                            withAnimation(.easeOut(duration: 0.15)) { checkIn.preferredStyle = nil }
                         } label: {
                             Chip(label: "Coach's choice", systemImage: "sparkles", selected: checkIn.preferredStyle == nil)
                         }
@@ -149,7 +165,7 @@ struct TodayView: View {
 
                         ForEach(profile.allowedStyles) { style in
                             Button {
-                                checkIn.preferredStyle = style
+                                withAnimation(.easeOut(duration: 0.15)) { checkIn.preferredStyle = style }
                             } label: {
                                 Chip(label: style.displayName, systemImage: style.symbol, selected: checkIn.preferredStyle == style)
                             }
@@ -158,6 +174,7 @@ struct TodayView: View {
                         }
                     }
                 }
+                .sensoryFeedback(.selection, trigger: checkIn.preferredStyle)
             }
 
             Button {

@@ -35,6 +35,11 @@ final class TrainingBlock {
     var rationale: String
     var sessions: [PlannedSession]
     var completedSessionIndices: [Int]
+    /// Sessions the user chose to skip. Like completed sessions, these are
+    /// "resolved" — the plan advances past them — but tracked separately so
+    /// the Plan UI and the next planner prompt can tell done from skipped.
+    /// Defaulted so existing stores migrate without a custom migration plan.
+    var skippedSessionIndices: [Int] = []
     var createdAt: Date
 
     init(startDate: Date, generated: GeneratedBlock) {
@@ -53,6 +58,7 @@ final class TrainingBlock {
             )
         }
         self.completedSessionIndices = []
+        self.skippedSessionIndices = []
         self.createdAt = .now
     }
 
@@ -62,14 +68,41 @@ final class TrainingBlock {
     }
 
     var nextPendingSession: PlannedSession? {
-        sessions.first { !completedSessionIndices.contains($0.index) }
+        sessions.first { !isResolved($0.index) }
+    }
+
+    /// A session is resolved once it has been completed or skipped — either
+    /// way the plan moves on to the next session.
+    func isResolved(_ index: Int) -> Bool {
+        completedSessionIndices.contains(index) || skippedSessionIndices.contains(index)
+    }
+
+    /// How many sessions are behind the user (done or skipped).
+    var resolvedSessionCount: Int {
+        Set(completedSessionIndices).union(skippedSessionIndices).count
     }
 
     func markSessionCompleted(_ index: Int) {
+        // If it had been skipped, completing it wins.
+        skippedSessionIndices.removeAll { $0 == index }
         if !completedSessionIndices.contains(index) {
             completedSessionIndices.append(index)
         }
-        if completedSessionIndices.count >= sessions.count {
+        finishIfAllResolved()
+    }
+
+    func markSessionSkipped(_ index: Int) {
+        // Don't override an already-completed session.
+        guard !completedSessionIndices.contains(index) else { return }
+        if !skippedSessionIndices.contains(index) {
+            skippedSessionIndices.append(index)
+        }
+        finishIfAllResolved()
+    }
+
+    /// Once every session is resolved (done or skipped) the week is over.
+    private func finishIfAllResolved() {
+        if resolvedSessionCount >= sessions.count {
             status = .completed
         }
     }
@@ -77,8 +110,22 @@ final class TrainingBlock {
     /// Compact summary of the block for the next planner prompt.
     var summary: String {
         let done = completedSessionIndices.count
-        var lines = ["Week of \(startDate.formatted(date: .abbreviated, time: .omitted)) (\(statusRaw), \(done)/\(sessions.count) sessions done):"]
-        lines += sessions.map { "  - \($0.summaryLine)\(completedSessionIndices.contains($0.index) ? " ✓" : "")" }
+        let skipped = skippedSessionIndices.count
+        var header = "Week of \(startDate.formatted(date: .abbreviated, time: .omitted)) (\(statusRaw), \(done)/\(sessions.count) sessions done"
+        if skipped > 0 { header += ", \(skipped) skipped" }
+        header += "):"
+        var lines = [header]
+        lines += sessions.map { session in
+            let mark: String
+            if completedSessionIndices.contains(session.index) {
+                mark = " ✓"
+            } else if skippedSessionIndices.contains(session.index) {
+                mark = " ✗ skipped"
+            } else {
+                mark = ""
+            }
+            return "  - \(session.summaryLine)\(mark)"
+        }
         return lines.joined(separator: "\n")
     }
 }

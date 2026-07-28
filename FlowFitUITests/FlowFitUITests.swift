@@ -123,6 +123,21 @@ final class FlowFitUITests: XCTestCase {
             app.buttons["Done"].tap()
         }
 
+        // MARK: Regenerate — one-tap "try a different workout"
+        let regenerate = app.buttons["regenerateWorkout"]
+        if regenerate.waitForExistence(timeout: 5) {
+            scrollToAndTap(regenerate)
+            // If changes were logged a confirmation appears; otherwise it
+            // regenerates directly. Handle both.
+            let confirm = app.buttons["Get a different workout"]
+            if confirm.waitForExistence(timeout: 3) {
+                confirm.tap()
+            }
+            let alternativeTitle = app.staticTexts["Gentle Mobility Flow"]
+            XCTAssertTrue(alternativeTitle.waitForExistence(timeout: 20), "Regenerated alternative workout should appear")
+            snap("07b-regenerated-workout")
+        }
+
         // MARK: Complete + feedback
         scrollToAndTap(app.buttons["I'm done — log how it felt"])
         let feedbackBar = app.navigationBars["Nice work!"]

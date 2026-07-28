@@ -129,7 +129,7 @@ FlowFitTests/                    # Parsers, prompts, validator, wiki budgets
 
 - [ ] Dashboard: trends from the raw layer (consistency, felt-ratings, load progression, style mix)
 - [ ] UI polish pass (deliberately deferred)
-- [ ] "Regenerate today's workout" one-tap alternative
+- [x] "Regenerate today's workout" one-tap alternative
 - [ ] Cycle-aware planning for PCOD
 - [ ] Multiple profiles / clients
 - [ ] Optional HealthKit export

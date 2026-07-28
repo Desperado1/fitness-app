@@ -68,6 +68,49 @@ final class ModelTests: XCTestCase {
         XCTAssertTrue(block.summary.contains("2/2 sessions done"))
     }
 
+    func testSkippedSessionAdvancesPlan() {
+        func session(_ focus: String) -> GeneratedBlock.Session {
+            GeneratedBlock.Session(focus: focus, style: "recovery", durationMinutes: 20, homeAlternativeNote: nil, exercises: [])
+        }
+        let generated = GeneratedBlock(
+            rationale: "Mixed week.",
+            sessions: [session("Strength"), session("Recovery"), session("Cardio")]
+        )
+        let block = TrainingBlock(startDate: .now, generated: generated)
+
+        // Skipping the first session advances to the next, block stays active.
+        block.markSessionSkipped(0)
+        XCTAssertEqual(block.nextPendingSession?.index, 1)
+        XCTAssertEqual(block.status, .active)
+        XCTAssertEqual(block.resolvedSessionCount, 1)
+
+        block.markSessionCompleted(1)
+        XCTAssertEqual(block.nextPendingSession?.index, 2)
+
+        // Every session resolved (1 done, 2 skipped) → week is over.
+        block.markSessionSkipped(2)
+        XCTAssertNil(block.nextPendingSession)
+        XCTAssertEqual(block.status, .completed)
+
+        // Summary distinguishes done from skipped for the next planner.
+        XCTAssertTrue(block.summary.contains("1/3 sessions done"))
+        XCTAssertTrue(block.summary.contains("2 skipped"))
+        XCTAssertTrue(block.summary.contains("✗ skipped"))
+    }
+
+    func testCompletingASkippedSessionOverridesSkip() {
+        let generated = GeneratedBlock(
+            rationale: "x",
+            sessions: [GeneratedBlock.Session(focus: "Strength", style: "weightlifting", durationMinutes: 40, homeAlternativeNote: nil, exercises: [])]
+        )
+        let block = TrainingBlock(startDate: .now, generated: generated)
+        block.markSessionSkipped(0)
+        block.markSessionCompleted(0)
+        XCTAssertEqual(block.completedSessionIndices, [0])
+        XCTAssertFalse(block.skippedSessionIndices.contains(0))
+        XCTAssertEqual(block.resolvedSessionCount, 1)
+    }
+
     func testHistoryLineIncludesFeedback() {
         let workout = Workout(date: .now, generated: makeGenerated(exerciseNames: ["Squat"]), checkIn: DailyCheckIn())
         workout.status = .completed

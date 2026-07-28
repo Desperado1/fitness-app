@@ -4,11 +4,25 @@ import SwiftData
 struct WorkoutDetailView: View {
     @Bindable var workout: Workout
     let profile: UserProfile
+    /// Whether to offer one-tap regeneration ("try a different workout").
+    /// Only true for today's live workout; History shows past sessions read-only.
+    var canRegenerate: Bool = false
+
+    @Environment(\.modelContext) private var context
 
     @State private var showFeedback = false
     @State private var showChat = false
+    @State private var isRegenerating = false
+    @State private var regenerateError: String?
+    @State private var showRegenerateConfirm = false
 
     private var isEditable: Bool { workout.status == .planned }
+
+    /// True once the user has adjusted or skipped any exercise — regenerating
+    /// would discard that logging, so we confirm first.
+    private var hasLoggedActuals: Bool {
+        workout.exercises.contains { $0.status != .asPrescribed }
+    }
 
     var body: some View {
         Screen {
@@ -100,11 +114,35 @@ struct WorkoutDetailView: View {
                         Label("I'm done — log how it felt", systemImage: "checkmark.circle.fill")
                     }
                     .buttonStyle(.primaryAction)
+                    .disabled(isRegenerating)
+
+                    if canRegenerate {
+                        Button {
+                            if hasLoggedActuals {
+                                showRegenerateConfirm = true
+                            } else {
+                                Task { await regenerate() }
+                            }
+                        } label: {
+                            if isRegenerating {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                    Text("Rethinking today's workout…")
+                                }
+                            } else {
+                                Label("Try a different workout", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                        }
+                        .buttonStyle(.ghost)
+                        .disabled(isRegenerating)
+                        .accessibilityIdentifier("regenerateWorkout")
+                    }
 
                     Button("Skip today") {
-                        workout.status = .skipped
+                        skip()
                     }
                     .buttonStyle(.ghost)
+                    .disabled(isRegenerating)
                 }
             case .completed:
                 Card {
@@ -145,6 +183,77 @@ struct WorkoutDetailView: View {
         }
         .sheet(isPresented: $showChat) {
             ChatView(workout: workout, profile: profile)
+        }
+        .confirmationDialog(
+            "Replace today's workout?",
+            isPresented: $showRegenerateConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Get a different workout", role: .destructive) {
+                Task { await regenerate() }
+            }
+            Button("Keep this one", role: .cancel) {}
+        } message: {
+            Text("You've already logged some changes on this workout. Getting a different one will discard them.")
+        }
+        .alert("Couldn't regenerate", isPresented: .init(
+            get: { regenerateError != nil },
+            set: { if !$0 { regenerateError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(regenerateError ?? "")
+        }
+        // A success tap when the session is finished, a soft one when skipped.
+        .sensoryFeedback(trigger: workout.status) { _, status in
+            switch status {
+            case .completed: return .success
+            case .skipped: return .impact(weight: .light)
+            case .planned: return nil
+            }
+        }
+
+    private func activeBlock() -> TrainingBlock? {
+        let blocks = (try? context.fetch(FetchDescriptor<TrainingBlock>())) ?? []
+        return blocks.first { $0.status == .active }
+    }
+
+    /// The planned session this workout realized, if any — so the alternative
+    /// keeps the same weekly-plan intent and progression targets.
+    private func plannedSession() -> PlannedSession? {
+        guard let index = workout.blockSessionIndex else { return nil }
+        return activeBlock()?.sessions.first { $0.index == index }
+    }
+
+    /// Skip today's session and advance the weekly plan past it, so tomorrow
+    /// surfaces the next session instead of re-offering this one.
+    private func skip() {
+        workout.status = .skipped
+        if let index = workout.blockSessionIndex {
+            activeBlock()?.markSessionSkipped(index)
+        }
+    }
+
+    /// Re-run the modulator with the same check-in but asking for a genuinely
+    /// different workout, then replace today's prescription in place.
+    private func regenerate() async {
+        isRegenerating = true
+        defer { isRegenerating = false }
+
+        let wiki = WikiStore(context: context)
+        wiki.ensureSeeded(profile: profile)
+
+        do {
+            let generated = try await CoachService.fromSettings().generateWorkout(
+                profile: profile,
+                wikiContext: wiki.contextString(),
+                session: plannedSession(),
+                checkIn: workout.checkIn,
+                avoiding: workout.asGenerated
+            )
+            workout.apply(generated)
+        } catch {
+            regenerateError = error.localizedDescription
         }
     }
 
