@@ -212,6 +212,7 @@ struct WorkoutDetailView: View {
             case .planned: return nil
             }
         }
+    }
 
     private func activeBlock() -> TrainingBlock? {
         let blocks = (try? context.fetch(FetchDescriptor<TrainingBlock>())) ?? []
