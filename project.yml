@@ -18,6 +18,12 @@ targets:
       path: FlowFit/Info.plist
       properties:
         CFBundleDisplayName: FlowFit
+        # Reference the build settings so fastlane's per-run CURRENT_PROJECT_VERSION
+        # override (github.run_number) actually reaches CFBundleVersion. Without
+        # these, XcodeGen emits its literal default of "1" and every TestFlight
+        # upload is rejected as a duplicate build number.
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
