@@ -49,7 +49,7 @@ Requirements: Xcode 15+, iOS 17+ target. No third-party Swift dependencies. Run 
 
 ## Testing without a Mac
 
-Every push runs `.github/workflows/ios.yml` on a free GitHub Actions macOS runner: it generates the project, compiles the app, runs the unit tests, then boots an iPhone 16 simulator and drives the whole app with `FlowFitUITests` — onboarding, planning a week, generating and adjusting a workout, chatting with the coach, feedback, history, and Coach's Notes — attaching a screenshot at every screen. Download the **app-screenshots** artifact from the workflow run to see the app running without owning a Mac.
+**Actions → iOS CI → Run workflow** runs `.github/workflows/ios.yml` on a free GitHub Actions macOS runner (on demand only — merges to the default branch run the TestFlight workflow instead): it generates the project, compiles the app, runs the unit tests, then boots an iPhone 16 simulator and drives the whole app with `FlowFitUITests` — onboarding, planning a week, generating and adjusting a workout, chatting with the coach, feedback, history, and Coach's Notes — attaching a screenshot at every screen. Download the **app-screenshots** artifact from the workflow run to see the app running without owning a Mac.
 
 The UI tests launch the app with `-mock-llm` (canned coach responses from `MockLLMClient.swift` — no API key or credits needed; also handy as an offline demo mode) and `-ui-testing` (throwaway in-memory database).
 
