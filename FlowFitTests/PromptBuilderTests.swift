@@ -144,4 +144,74 @@ final class PromptBuilderTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Felt strong"))
         XCTAssertTrue(prompt.contains("Actual duration: 35 minutes"))
     }
+
+    // MARK: - Intake
+
+    func testIntakePromptDistinguishesUnknownFieldsFromDefaults() {
+        var checkIn = DailyCheckIn()
+        checkIn.energy = .low
+        checkIn.minutesAvailable = 25
+
+        let prompt = CoachService.intakeSystemPrompt(
+            profile: makeProfile(),
+            wikiContext: "### profile\ntest wiki",
+            session: nil,
+            checkIn: checkIn,
+            known: [.energy, .minutes]
+        )
+
+        XCTAssertTrue(prompt.contains("- energy: low"))
+        XCTAssertTrue(prompt.contains("- minutes: 25"))
+        // Venue defaults to home, but nobody has said so — the coach must be
+        // told it's unknown or it will never ask.
+        XCTAssertTrue(prompt.contains("- venue: not yet known"))
+        XCTAssertTrue(prompt.contains("STILL NEEDED BEFORE BUILDING: venue"))
+    }
+
+    func testIntakePromptStopsAskingOnceItHasEnough() {
+        let prompt = CoachService.intakeSystemPrompt(
+            profile: makeProfile(),
+            wikiContext: "",
+            session: nil,
+            checkIn: DailyCheckIn(),
+            known: [.energy, .venue, .minutes]
+        )
+
+        XCTAssertTrue(prompt.contains("STILL NEEDED BEFORE BUILDING: nothing — you have enough"))
+    }
+
+    func testIntakePromptOffersOnlyEnabledStyles() {
+        let prompt = CoachService.intakeSystemPrompt(
+            profile: makeProfile(),
+            wikiContext: "",
+            session: nil,
+            checkIn: DailyCheckIn(),
+            known: []
+        )
+
+        XCTAssertTrue(prompt.contains("calisthenics|weightlifting|recovery"))
+        XCTAssertFalse(prompt.contains("powerlifting"), "A disabled style must never be offered")
+    }
+
+    func testIntakePromptCarriesTodaysPlannedSession() {
+        let session = PlannedSession(
+            index: 0,
+            focus: "Lower-body strength",
+            style: "weightlifting",
+            durationMinutes: 40,
+            homeAlternativeNote: "Goblet squats with the dumbbells",
+            exercises: []
+        )
+
+        let prompt = CoachService.intakeSystemPrompt(
+            profile: makeProfile(),
+            wikiContext: "",
+            session: session,
+            checkIn: DailyCheckIn(),
+            known: []
+        )
+
+        XCTAssertTrue(prompt.contains("Lower-body strength"))
+        XCTAssertTrue(prompt.contains("Goblet squats with the dumbbells"))
+    }
 }

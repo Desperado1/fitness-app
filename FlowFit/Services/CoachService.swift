@@ -115,6 +115,44 @@ struct CoachService {
         return reply
     }
 
+    // MARK: - Intake
+
+    /// One turn of the conversational check-in that runs *before* today's
+    /// workout exists. Fills in the check-in by talking rather than tapping,
+    /// then hands over to the modulator once it has enough.
+    ///
+    /// Pass `userMessage: nil` for the opening turn, where the coach speaks
+    /// first. Kept deliberately cheap — short replies and a trimmed wiki —
+    /// because this runs several times per day and latency is felt directly.
+    func intake(
+        profile: UserProfile,
+        wikiContext: String,
+        session: PlannedSession?,
+        checkIn: DailyCheckIn,
+        known: Set<CheckInField>,
+        history: [IntakeTurn],
+        userMessage: String?
+    ) async throws -> IntakeReply {
+        var messages: [LLMMessage] = [
+            .system(Self.intakeSystemPrompt(
+                profile: profile,
+                wikiContext: wikiContext,
+                session: session,
+                checkIn: checkIn,
+                known: known
+            )),
+        ]
+        for message in history {
+            messages.append(LLMMessage(role: message.role.rawValue, content: message.content))
+        }
+        messages.append(.user(userMessage ?? "(The client just opened the app and hasn't said anything yet. Open the conversation.)"))
+
+        // A short cap keeps replies to a sentence or two, which is both the
+        // conversational register we want and the main lever on latency.
+        let raw = try await client.complete(messages: messages, maxTokens: 300)
+        return try Self.parse(raw)
+    }
+
     // MARK: - Scribe
 
     /// Called after a workout is completed: returns wiki page updates.
@@ -359,6 +397,99 @@ struct CoachService {
         If and only if the client's message requires changing the workout, set \
         "updatedWorkout" to the COMPLETE new workout JSON (same schema as the \
         current workout above, all fields present). Otherwise keep it null.
+        """
+    }
+
+    // MARK: - Intake prompts
+
+    /// Renders what the conversation has established so far. Fields the
+    /// client hasn't spoken to are shown as unknown rather than as their
+    /// default value, so the coach asks for what's missing and only that.
+    static func intakeStateLines(checkIn: DailyCheckIn, known: Set<CheckInField>) -> [String] {
+        CheckInField.allCases.map { (field: CheckInField) -> String in
+            guard known.contains(field) else { return "- \(field.rawValue): not yet known" }
+            switch field {
+            case .energy: return "- energy: \(checkIn.energy.rawValue)"
+            case .mood: return "- mood: \(checkIn.moodText.isEmpty ? "nothing said" : checkIn.moodText)"
+            case .soreness: return "- soreness: \(checkIn.sorenessOrPain.isEmpty ? "nothing reported" : checkIn.sorenessOrPain)"
+            case .venue: return "- venue: \(checkIn.venue.rawValue)"
+            case .minutes: return "- minutes: \(checkIn.minutesAvailable)"
+            case .style: return "- style: \(checkIn.preferredStyle?.rawValue ?? "coach's choice")"
+            }
+        }
+    }
+
+    static func intakeSystemPrompt(
+        profile: UserProfile,
+        wikiContext: String,
+        session: PlannedSession?,
+        checkIn: DailyCheckIn,
+        known: Set<CheckInField>
+    ) -> String {
+        let missing = CheckInField.required.filter { !known.contains($0) }
+        let plannedLine: String
+        if let session {
+            plannedLine = session.summaryLine + (session.homeAlternativeNote.map { "\nHome alternative: \($0)" } ?? "")
+        } else {
+            plannedLine = "None — there's no active weekly plan, so today would be a one-off session."
+        }
+
+        return """
+        You are a warm, familiar personal trainer greeting the client at the \
+        start of their training day, before today's workout is built. Your job \
+        is to learn how they are doing and fill in a short check-in — as a \
+        conversation, not an interrogation.
+
+        How to talk:
+        - Two short sentences at most, and at most ONE question per reply.
+        - Infer aggressively. "Barely slept and my calves are wrecked" tells \
+        you their energy AND their soreness — never ask again for something \
+        they already told you, directly or by implication.
+        - Ask only for what is still missing AND would actually change today's \
+        session. If they've given you enough, stop asking and say you're ready.
+        - Sound like someone who knows them, not a form. No bullet lists, no \
+        restating their answers back at them.
+        - You are not a doctor: never diagnose or give medical advice. If they \
+        report pain, acknowledge it and note it — the workout builder will \
+        train around it.
+
+        COACH'S MEMORY (wiki)
+        \(wikiContext)
+
+        CLIENT
+        Name: \(profile.name)
+        Goal: \(profile.primaryGoal.isEmpty ? "not specified" : profile.primaryGoal)
+        Medical notes: \(profile.medicalNotes.isEmpty ? "none reported" : profile.medicalNotes)
+        Limitations: \(profile.injuriesOrLimitations.isEmpty ? "none reported" : profile.injuriesOrLimitations)
+        Styles they have enabled: \(profile.allowedStyles.map(\.rawValue).joined(separator: ", "))
+
+        TODAY'S PLANNED SESSION
+        \(plannedLine)
+
+        CHECK-IN SO FAR
+        \(intakeStateLines(checkIn: checkIn, known: known).joined(separator: "\n"))
+
+        STILL NEEDED BEFORE BUILDING: \(missing.isEmpty ? "nothing — you have enough" : missing.map(\.rawValue).joined(separator: ", "))
+
+        Output format: respond with ONLY a JSON object, no markdown fences:
+        {
+          "reply": "what you say to the client",
+          "checkIn": {
+            "energy": "low|steady|high, or omit",
+            "moodText": "their own words about how they feel, or omit",
+            "sorenessOrPain": "what hurts, or omit",
+            "venue": "home|gym, or omit",
+            "minutesAvailable": 30,
+            "preferredStyle": "\(profile.allowedStyles.map(\.rawValue).joined(separator: "|")), or \\"coach\\" if they have no preference, or omit"
+          },
+          "readyToGenerate": false
+        }
+        Include a "checkIn" field ONLY when this turn actually taught you it. \
+        Omitted means "still unknown"; it never clears an earlier answer. \
+        Correct an earlier value only if the client contradicts it.
+        Set "readyToGenerate" to true once energy, venue, and minutes are all \
+        known — or once the client asks you to just get on with it, in which \
+        case fill in sensible values for anything still missing.
         """
     }
 

@@ -10,6 +10,14 @@ struct MockLLMClient: LLMCompleting {
         try? await Task.sleep(for: .milliseconds(300))
 
         let system = messages.first(where: { $0.role == "system" })?.content ?? ""
+        if system.contains("greeting the client at the start of their training day") {
+            // Scripted three-turn check-in, so the mock walks a real
+            // conversation instead of repeating one canned reply. Counted by
+            // replies already given — the opening turn sends a synthetic user
+            // message that never lands in the transcript, so counting user
+            // messages would stick on turn 1.
+            return Self.intakeJSON(turn: messages.filter { $0.role == "assistant" }.count + 1)
+        }
         if system.contains("design the NEXT WEEK") {
             return Self.blockJSON
         }
@@ -27,6 +35,36 @@ struct MockLLMClient: LLMCompleting {
             return Self.scribeJSON
         }
         return Self.workoutJSON
+    }
+
+    /// The conversational check-in, one canned turn at a time: greet, learn
+    /// energy and soreness, then venue and time — and hand over.
+    static func intakeJSON(turn: Int) -> String {
+        switch turn {
+        case ...1:
+            return """
+            {
+              "reply": "Morning! Today's a lower-body strength day. How are you feeling?",
+              "readyToGenerate": false
+            }
+            """
+        case 2:
+            return """
+            {
+              "reply": "Thanks for telling me — we'll go gentle on those calves. Where are you training today, and how long have you got?",
+              "checkIn": {"energy": "low", "moodText": "tired but willing", "sorenessOrPain": "calves sore"},
+              "readyToGenerate": false
+            }
+            """
+        default:
+            return """
+            {
+              "reply": "Perfect — half an hour at home. Let me put something together for you.",
+              "checkIn": {"venue": "home", "minutesAvailable": 30},
+              "readyToGenerate": true
+            }
+            """
+        }
     }
 
     static let blockJSON = """

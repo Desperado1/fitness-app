@@ -28,12 +28,16 @@ struct WikiStore {
         return pages.sorted { (order[$0.slug] ?? .max) < (order[$1.slug] ?? .max) }
     }
 
-    /// The full wiki as a single string for inclusion in prompts.
-    func contextString() -> String {
-        allPages().map { page in
-            "### \(page.slug)\n\(page.content)"
-        }
-        .joined(separator: "\n\n")
+    /// The wiki as a single string for inclusion in prompts. Defaults to
+    /// every page; pass `slugs` to trim it for roles that don't need the
+    /// whole memory — the intake coach only needs who the client is and
+    /// where the week stands, and pays for the rest in latency.
+    func contextString(slugs: [WikiSlug] = WikiSlug.allCases) -> String {
+        let wanted = Set(slugs.map(\.rawValue))
+        return allPages()
+            .filter { wanted.contains($0.slug) }
+            .map { page in "### \(page.slug)\n\(page.content)" }
+            .joined(separator: "\n\n")
     }
 
     /// Applies LLM-produced page updates: snapshots the old content,

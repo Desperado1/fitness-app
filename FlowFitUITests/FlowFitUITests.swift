@@ -87,9 +87,39 @@ final class FlowFitUITests: XCTestCase {
         XCTAssertTrue(firstSession.waitForExistence(timeout: 20), "Planned sessions should appear")
         snap("04-plan-week")
 
-        // MARK: Generate today's workout from the block
+        // MARK: Conversational check-in — the coach fills the form by talking
         tapTab("Today")
-        scrollToAndTap(app.buttons["Create today's workout"])
+        scrollToAndTap(app.buttons["startIntake"])
+
+        let intakeInput = app.descendants(matching: .any)["intakeInput"].firstMatch
+        XCTAssertTrue(intakeInput.waitForExistence(timeout: 15), "Check-in conversation should open")
+        XCTAssertTrue(
+            app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "How are you feeling"))
+                .firstMatch.waitForExistence(timeout: 20),
+            "The coach should open the conversation itself"
+        )
+        snap("04b-checkin-conversation")
+
+        intakeInput.tap()
+        intakeInput.typeText("Pretty tired, and my calves are sore")
+        app.descendants(matching: .any)["intakeSend"].firstMatch.tap()
+
+        // The soreness chip only renders once that field is actually known,
+        // so its appearance proves the patch reached the check-in.
+        XCTAssertTrue(
+            app.descendants(matching: .any)["intakeChip-soreness"].firstMatch.waitForExistence(timeout: 20),
+            "Chips should fill in from what the coach heard"
+        )
+        snap("04c-checkin-chips-filled")
+
+        intakeInput.tap()
+        intakeInput.typeText("At home, about half an hour")
+        app.descendants(matching: .any)["intakeSend"].firstMatch.tap()
+
+        let buildFromChat = app.buttons["intakeGenerate"]
+        XCTAssertTrue(buildFromChat.waitForExistence(timeout: 20), "Coach should offer to build once it has enough")
+        snap("04d-checkin-ready")
+        buildFromChat.tap()
 
         let workoutTitle = app.staticTexts["Steady Strength"]
         XCTAssertTrue(workoutTitle.waitForExistence(timeout: 20), "Generated workout should appear")
