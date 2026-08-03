@@ -6,7 +6,7 @@ A minimalist iOS workout app with an AI coach. No subscriptions, no single-disci
 
 1. **One-time profile** — goals, experience, home + gym equipment, health context (e.g. postpartum recovery, PCOD, thyroid), and hard limits. Stored on-device with SwiftData.
 2. **Plan my week** — the coach designs a weekly training block (sessions with focus, style, exercises, target weights) that carries progression from week to week.
-3. **Daily check-in** — energy, mood, soreness, home or gym, minutes available. The coach *modulates* today's planned session to fit: low energy shrinks it, no gym swaps the equipment, a rough week turns it into recovery. Structure holds the skeleton; mood turns the dial.
+3. **Daily check-in** — energy, mood, soreness, home or gym, minutes available. Tap it in, or just **talk it through**: the coach asks how you're doing and fills the form from your answers, so a check-in is a short conversation rather than six controls. Either way it *modulates* today's planned session to fit: low energy shrinks it, no gym swaps the equipment, a rough week turns it into recovery. Structure holds the skeleton; mood turns the dial.
 4. **Do it, log only what changed** — every exercise defaults to "done as prescribed"; tap to adjust actual sets/reps/weight or skip. Talk back anytime: a per-workout chat where the coach explains choices and applies edits ("my wrists hurt, swap the push-ups").
 5. **Feedback** — a 1–5 "how did it feel" rating plus a note. This, with your actuals, drives the next session and the next week.
 
@@ -18,11 +18,12 @@ Inspired by [Karpathy's LLM-wiki idea](https://aaif.io/blog/karpathys-llm-wiki-a
 2. **Wiki layer (the coach's memory, LLM-owned)** — five size-budgeted markdown pages: `profile`, `progressions` (current working numbers, copied verbatim from raw data), `observations` (patterns over time), `current-block`, `log`. Visible and editable in-app as **Coach's Notes**, snapshotted on every change, and rebuildable from raw history at any time.
 3. **Schema layer** — `WikiSchema.swift`: page purposes, budgets, and conventions included in every wiki-writing prompt.
 
-Every LLM call goes through `CoachService`, one of five roles sharing the same memory:
+Every LLM call goes through `CoachService`, one of six roles sharing the same memory:
 
 | Role | Reads | Writes |
 |---|---|---|
 | Planner | wiki + profile + last block | next week's `TrainingBlock` |
+| Intake | trimmed wiki + planned session + check-in so far | a reply + the fields it learned |
 | Modulator | wiki + planned session + today's check-in | today's concrete workout |
 | Chat coach | wiki + today's workout + thread | reply + optional structured workout edit |
 | Scribe | wiki + completed workout (actuals, feedback) | updated wiki pages |
@@ -48,7 +49,7 @@ Requirements: Xcode 15+, iOS 17+ target. No third-party Swift dependencies. Run 
 
 ## Testing without a Mac
 
-Every push runs `.github/workflows/ios.yml` on a free GitHub Actions macOS runner: it generates the project, compiles the app, runs the unit tests, then boots an iPhone 16 simulator and drives the whole app with `FlowFitUITests` — onboarding, planning a week, generating and adjusting a workout, chatting with the coach, feedback, history, and Coach's Notes — attaching a screenshot at every screen. Download the **app-screenshots** artifact from the workflow run to see the app running without owning a Mac.
+**Actions → iOS CI → Run workflow** runs `.github/workflows/ios.yml` on a free GitHub Actions macOS runner (on demand only — merges to the default branch run the TestFlight workflow instead): it generates the project, compiles the app, runs the unit tests, then boots an iPhone 16 simulator and drives the whole app with `FlowFitUITests` — onboarding, planning a week, generating and adjusting a workout, chatting with the coach, feedback, history, and Coach's Notes — attaching a screenshot at every screen. Download the **app-screenshots** artifact from the workflow run to see the app running without owning a Mac.
 
 The UI tests launch the app with `-mock-llm` (canned coach responses from `MockLLMClient.swift` — no API key or credits needed; also handy as an offline demo mode) and `-ui-testing` (throwaway in-memory database).
 
@@ -104,10 +105,11 @@ FlowFit/
 │   ├── TrainingBlock.swift       # Weekly plan + LLM block contract
 │   ├── Workout.swift             # Prescription + actuals, check-in, LLM workout contract
 │   ├── WikiPage.swift            # Wiki layer storage w/ snapshots
-│   └── CoachChatMessage.swift    # Chat transcripts
+│   ├── CoachChatMessage.swift    # Chat transcripts
+│   └── Intake.swift              # Conversational check-in contract + merge rules
 ├── Services/
 │   ├── LLMClient.swift           # OpenAI-compatible chat client (DeepSeek/Qwen)
-│   ├── CoachService.swift        # Five roles: prompts + parsing
+│   ├── CoachService.swift        # Six roles: prompts + parsing
 │   ├── WikiSchema.swift          # Schema layer: pages, budgets, conventions
 │   ├── WikiStore.swift           # Wiki seeding, context, updates, rollback
 │   └── WorkoutValidator.swift    # Code-level safety guardrails
@@ -116,6 +118,7 @@ FlowFit/
     ├── OnboardingView.swift      # First-run profile setup
     ├── PlanView.swift            # Weekly block + "Plan my week"
     ├── TodayView.swift           # Check-in → modulated workout
+    ├── CheckInChatView.swift     # Conversational check-in; fills the form by talking
     ├── WorkoutDetailView.swift   # Per-exercise logging, complete/skip
     ├── ChatView.swift            # Talk back; coach applies edits
     ├── FeedbackSheet.swift       # Rating + note; fires the scribe
@@ -133,3 +136,6 @@ FlowFitTests/                    # Parsers, prompts, validator, wiki budgets
 - [ ] Cycle-aware planning for PCOD
 - [ ] Multiple profiles / clients
 - [ ] Optional HealthKit export
+- [x] Conversational check-in: the coach fills energy/venue/time/style from what you tell it
+- [ ] Voice mode: talk to the coach hands-free (speech-to-text in, spoken replies) — the check-in conversation is already in place, this adds the microphone
+- [ ] Exercise demos: show how to perform each movement (form cues, image or short clip)

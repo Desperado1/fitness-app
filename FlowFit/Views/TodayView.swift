@@ -14,6 +14,13 @@ struct TodayView: View {
     @State private var checkIn = DailyCheckIn()
     @State private var isGenerating = false
     @State private var errorMessage: String?
+    /// Which check-in fields have actually been established — by the
+    /// conversation or by hand. Every field has a usable default, so the
+    /// values alone can't tell an answer from an untouched default, and the
+    /// intake coach needs that difference to know what's left to ask.
+    @State private var knownFields: Set<CheckInField> = []
+    @State private var intakeTranscript: [IntakeTurn] = []
+    @State private var showingIntake = false
     /// Anchor for "today". The current date is not a reactive dependency, so
     /// without this the view would keep showing yesterday's workout after the
     /// day rolls over while the app was backgrounded. Refreshed on foreground
@@ -45,6 +52,21 @@ struct TodayView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "")
+            }
+            .sheet(isPresented: $showingIntake) {
+                CheckInChatView(
+                    profile: profile,
+                    session: activeBlock?.nextPendingSession,
+                    // The intake coach only needs who the client is and where
+                    // the week stands; progressions and the log would cost
+                    // latency on every turn for nothing.
+                    wikiContext: WikiStore(context: context)
+                        .contextString(slugs: [.profile, .currentBlock]),
+                    checkIn: $checkIn,
+                    knownFields: $knownFields,
+                    transcript: $intakeTranscript,
+                    onGenerate: { Task { await generate() } }
+                )
             }
         }
         // Re-anchor "today" when the app returns to the foreground and when the
@@ -106,11 +128,41 @@ struct TodayView: View {
                 }
             }
 
+            // The conversational path. It writes into the very same check-in
+            // the form below binds to, so talking and tapping are two ways
+            // into one state — and a misheard answer is fixed with a tap.
+            VStack(spacing: 12) {
+                Button {
+                    WikiStore(context: context).ensureSeeded(profile: profile)
+                    showingIntake = true
+                } label: {
+                    Label(
+                        intakeTranscript.isEmpty ? "Talk it through" : "Continue with your coach",
+                        systemImage: "bubble.left.and.text.bubble.right"
+                    )
+                }
+                .buttonStyle(.primaryAction)
+                .accessibilityIdentifier("startIntake")
+
+                HStack(spacing: 10) {
+                    Rectangle().fill(Color.appBorder).frame(height: 1)
+                    Text("or fill it in yourself")
+                        .font(.caption)
+                        .foregroundStyle(Color.appTextSecondary)
+                        .fixedSize()
+                    Rectangle().fill(Color.appBorder).frame(height: 1)
+                }
+            }
+
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader(title: "Energy")
                 HStack(spacing: 10) {
                     ForEach(EnergyLevel.allCases) { level in
                         Button {
+                            // Marked known explicitly rather than via onChange:
+                            // "steady" is the default, so tapping it first
+                            // would otherwise register as no answer at all.
+                            knownFields.insert(.energy)
                             withAnimation(.easeOut(duration: 0.15)) { checkIn.energy = level }
                         } label: {
                             OptionCard(
@@ -156,6 +208,7 @@ struct TodayView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         Button {
+                            knownFields.insert(.style)
                             withAnimation(.easeOut(duration: 0.15)) { checkIn.preferredStyle = nil }
                         } label: {
                             Chip(label: "Coach's choice", systemImage: "sparkles", selected: checkIn.preferredStyle == nil)
@@ -165,6 +218,7 @@ struct TodayView: View {
 
                         ForEach(profile.allowedStyles) { style in
                             Button {
+                                knownFields.insert(.style)
                                 withAnimation(.easeOut(duration: 0.15)) { checkIn.preferredStyle = style }
                             } label: {
                                 Chip(label: style.displayName, systemImage: style.symbol, selected: checkIn.preferredStyle == style)
@@ -195,6 +249,16 @@ struct TodayView: View {
             .buttonStyle(.primaryAction)
             .disabled(isGenerating)
         }
+        // Editing by hand counts as answering, so a later conversation
+        // doesn't ask again for something already filled in on the form.
+        .onChange(of: checkIn.venue) { knownFields.insert(.venue) }
+        .onChange(of: checkIn.minutesAvailable) { knownFields.insert(.minutes) }
+        .onChange(of: checkIn.moodText) { _, text in
+            if !text.isEmpty { knownFields.insert(.mood) }
+        }
+        .onChange(of: checkIn.sorenessOrPain) { _, text in
+            if !text.isEmpty { knownFields.insert(.soreness) }
+        }
     }
 
     private func generate() async {
@@ -212,12 +276,25 @@ struct TodayView: View {
                 session: session,
                 checkIn: checkIn
             )
-            context.insert(Workout(
+            let workout = Workout(
                 date: .now,
                 generated: generated,
                 checkIn: checkIn,
                 blockSessionIndex: session?.index
-            ))
+            )
+            context.insert(workout)
+
+            // Carry the check-in conversation into the workout's thread now
+            // that there's a UUID to key it by, so the chat coach picks up
+            // mid-conversation instead of starting cold.
+            for turn in intakeTranscript {
+                context.insert(CoachChatMessage(
+                    workoutUUID: workout.uuid,
+                    role: turn.role,
+                    content: turn.content
+                ))
+            }
+            intakeTranscript.removeAll()
         } catch {
             errorMessage = error.localizedDescription
         }
