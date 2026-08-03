@@ -6,7 +6,11 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    MARKETING_VERSION: "0.1.0"
+    # Must stay above 1.0. One build escaped before the version keys were wired
+    # up (see the CFBundleVersion note below) and shipped as XcodeGen's default
+    # 1.0 (1). Anything at 0.x reads as older than that build, so TestFlight
+    # offers no update to phones carrying it.
+    MARKETING_VERSION: "1.1.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
   FlowFit:
