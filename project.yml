@@ -28,6 +28,10 @@ targets:
         # upload is rejected as a duplicate build number.
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        # Voice mode: both are required, and iOS kills the app on first use
+        # if either string is missing.
+        NSMicrophoneUsageDescription: FlowFit uses the microphone so you can talk to your coach instead of tapping through the check-in.
+        NSSpeechRecognitionUsageDescription: FlowFit turns what you say into text so your coach can understand your check-in and answer you.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
