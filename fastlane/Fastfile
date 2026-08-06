@@ -49,9 +49,20 @@ platform :ios do
       }
     )
 
+    # Wait for Apple to finish processing rather than exiting the moment the
+    # upload is accepted. Skipping the wait made every run go green even when
+    # processing later rejected the build, so "CI passed" said nothing about
+    # whether the build was actually installable — the failure only showed up
+    # as an email, or as a TestFlight tab that never changed.
+    #
+    # Costs a few minutes of runner time per build. The repository is public,
+    # so those minutes are free.
     upload_to_testflight(
       api_key: api_key,
-      skip_waiting_for_build_processing: true,
+      skip_waiting_for_build_processing: false,
+      # Bounded so a stuck build fails the job instead of burning the whole
+      # 45-minute timeout with no explanation.
+      wait_processing_timeout_duration: 1800,
       distribute_external: false
     )
   end
