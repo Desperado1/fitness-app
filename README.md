@@ -6,11 +6,11 @@ A minimalist iOS workout app with an AI coach. No subscriptions, no single-disci
 
 1. **One-time profile** — goals, experience, home + gym equipment, health context (e.g. postpartum recovery, PCOD, thyroid), and hard limits. Stored on-device with SwiftData.
 2. **Plan my week** — the coach designs a weekly training block (sessions with focus, style, exercises, target weights) that carries progression from week to week.
-3. **Daily check-in** — energy, mood, soreness, home or gym, minutes available. Tap it in, or just **talk it through**: the coach asks how you're doing and fills the form from your answers, so a check-in is a short conversation rather than six controls. Either way it *modulates* today's planned session to fit: low energy shrinks it, no gym swaps the equipment, a rough week turns it into recovery. Structure holds the skeleton; mood turns the dial.
+3. **Daily check-in** — energy, mood, soreness, home or gym, minutes available. Tap it in, or just **talk it through** — by typing or out loud, hands-free: the coach asks how you're doing and fills the form from your answers, so a check-in is a short conversation rather than six controls. Either way it *modulates* today's planned session to fit: low energy shrinks it, no gym swaps the equipment, a rough week turns it into recovery. Structure holds the skeleton; mood turns the dial.
 4. **Do it, log only what changed** — every exercise defaults to "done as prescribed"; tap to adjust actual sets/reps/weight or skip. Talk back anytime: a per-workout chat where the coach explains choices and applies edits ("my wrists hurt, swap the push-ups").
 5. **Feedback** — a 1–5 "how did it feel" rating plus a note. This, with your actuals, drives the next session and the next week.
 
-## Architecture: three layers + one coach, five roles
+## Architecture: three layers + one coach, six roles
 
 Inspired by [Karpathy's LLM-wiki idea](https://aaif.io/blog/karpathys-llm-wiki-as-agent-memory/): the model maintains a lean, human-readable knowledge base instead of re-reading raw data.
 
@@ -51,7 +51,7 @@ Requirements: Xcode 15+, iOS 17+ target. No third-party Swift dependencies. Run 
 
 **Actions → iOS CI → Run workflow** runs `.github/workflows/ios.yml` on a free GitHub Actions macOS runner (on demand only — merges to the default branch run the TestFlight workflow instead): it generates the project, compiles the app, runs the unit tests, then boots an iPhone 16 simulator and drives the whole app with `FlowFitUITests` — onboarding, planning a week, generating and adjusting a workout, chatting with the coach, feedback, history, and Coach's Notes — attaching a screenshot at every screen. Download the **app-screenshots** artifact from the workflow run to see the app running without owning a Mac.
 
-The UI tests launch the app with `-mock-llm` (canned coach responses from `MockLLMClient.swift` — no API key or credits needed; also handy as an offline demo mode) and `-ui-testing` (throwaway in-memory database).
+The UI tests launch the app with `-mock-llm` (canned coach responses from `MockLLMClient.swift` — no API key or credits needed; also handy as an offline demo mode), `-mock-voice` (scripted speech from `ScriptedSpeechEngine.swift`, since the simulator has no usable microphone — this is what lets CI drive and screenshot the hands-free loop), and `-ui-testing` (throwaway in-memory database).
 
 Note: macOS runners consume GitHub's free minutes at a 10× multiplier on private repos (~200 macOS-minutes/month on the free tier; one run takes ~15). Making the repo public removes the cap.
 
@@ -137,5 +137,6 @@ FlowFitTests/                    # Parsers, prompts, validator, wiki budgets
 - [ ] Multiple profiles / clients
 - [ ] Optional HealthKit export
 - [x] Conversational check-in: the coach fills energy/venue/time/style from what you tell it
-- [ ] Voice mode: talk to the coach hands-free (speech-to-text in, spoken replies) — the check-in conversation is already in place, this adds the microphone
+- [x] Voice mode: hands-free check-in (speech in, spoken replies), dictation and spoken answers in chat
+- [ ] Voice during the workout: "next exercise", "I did 8 not 10" mid-set
 - [ ] Exercise demos: show how to perform each movement (form cues, image or short clip)

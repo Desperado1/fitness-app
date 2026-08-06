@@ -10,7 +10,7 @@ final class FlowFitUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-ui-testing", "-mock-llm"]
+        app.launchArguments = ["-ui-testing", "-mock-llm", "-mock-voice"]
         app.launch()
     }
 
@@ -93,33 +93,34 @@ final class FlowFitUITests: XCTestCase {
 
         let intakeInput = app.descendants(matching: .any)["intakeInput"].firstMatch
         XCTAssertTrue(intakeInput.waitForExistence(timeout: 15), "Check-in conversation should open")
+        // The greeting is written on-device, so it's there immediately rather
+        // than after a round-trip.
         XCTAssertTrue(
             app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "How are you feeling"))
-                .firstMatch.waitForExistence(timeout: 20),
+                .firstMatch.waitForExistence(timeout: 10),
             "The coach should open the conversation itself"
         )
         snap("04b-checkin-conversation")
 
-        intakeInput.tap()
-        intakeInput.typeText("Pretty tired, and my calves are sore")
-        app.descendants(matching: .any)["intakeSend"].firstMatch.tap()
+        // MARK: Hands-free voice mode
+        // -mock-voice swaps in scripted speech, so CI drives the whole loop:
+        // the coach speaks, "hears" an answer, and moves on with no taps.
+        app.descendants(matching: .any)["intakeMic"].firstMatch.tap()
+
+        let orb = app.descendants(matching: .any)["voiceOrb"].firstMatch
+        XCTAssertTrue(orb.waitForExistence(timeout: 15), "Voice mode should show the orb")
+        snap("04c-voice-mode")
 
         // The soreness chip only renders once that field is actually known,
-        // so its appearance proves the patch reached the check-in.
+        // so its appearance proves spoken words reached the check-in.
         XCTAssertTrue(
-            app.descendants(matching: .any)["intakeChip-soreness"].firstMatch.waitForExistence(timeout: 20),
+            app.descendants(matching: .any)["intakeChip-soreness"].firstMatch.waitForExistence(timeout: 30),
             "Chips should fill in from what the coach heard"
         )
-        snap("04c-checkin-chips-filled")
+        snap("04d-voice-chips-filled")
 
-        intakeInput.tap()
-        intakeInput.typeText("At home, about half an hour")
-        app.descendants(matching: .any)["intakeSend"].firstMatch.tap()
-
-        let buildFromChat = app.buttons["intakeGenerate"]
-        XCTAssertTrue(buildFromChat.waitForExistence(timeout: 20), "Coach should offer to build once it has enough")
-        snap("04d-checkin-ready")
-        buildFromChat.tap()
+        // Second scripted utterance completes the check-in; voice mode then
+        // builds the workout itself rather than asking for a tap.
 
         let workoutTitle = app.staticTexts["Steady Strength"]
         XCTAssertTrue(workoutTitle.waitForExistence(timeout: 20), "Generated workout should appear")

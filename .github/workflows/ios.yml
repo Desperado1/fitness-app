@@ -1,9 +1,14 @@
 name: iOS CI
 
-# Runs on demand only. On merge to the main branch, the TestFlight
-# workflow (testflight.yml) runs instead of this test build.
+# Runs on demand: from the Actions tab, or by bumping .github/trigger-ci
+# (the same escape hatch ipa.yml uses, so a session that can't dispatch
+# workflows can still gate a branch on the tests before merging).
+# On merge to the main branch, the TestFlight workflow runs instead.
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/trigger-ci"
 
 jobs:
   build-and-test:

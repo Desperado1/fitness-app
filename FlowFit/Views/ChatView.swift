@@ -12,6 +12,9 @@ struct ChatView: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var messages: [CoachChatMessage]
 
+    @AppStorage("speakCoachReplies") private var speakCoachReplies = true
+    @StateObject private var voice = VoiceSession()
+
     @State private var input = ""
     @State private var isSending = false
     @State private var errorMessage: String?
@@ -68,6 +71,30 @@ struct ChatView: View {
                     .frame(height: 1)
 
                 HStack(spacing: 8) {
+                    // Dictation rather than the full hands-free loop: in a
+                    // chat you're usually looking at the screen anyway, and
+                    // seeing the text before it sends is worth the tap.
+                    Button {
+                        if voice.isListening {
+                            voice.stopListening()
+                        } else {
+                            Task {
+                                guard await voice.prepare() else { return }
+                                voice.listen { text in
+                                    input = text
+                                    voice.markIdle()
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: voice.isListening ? "waveform" : "mic.fill")
+                            .font(.title3)
+                            .foregroundStyle(voice.isListening ? Color.appAccent : Color.appTextSecondary)
+                    }
+                    .disabled(isSending)
+                    .accessibilityLabel("Dictate a message")
+                    .accessibilityIdentifier("chatMic")
+
                     TextField("Message your coach…", text: $input, axis: .vertical)
                         .lineLimit(1...4)
                         .textFieldStyle(.plain)
@@ -96,9 +123,13 @@ struct ChatView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        voice.stop()
+                        dismiss()
+                    }
                 }
             }
+            .onDisappear { voice.stop() }
             .alert("Message failed", isPresented: .init(
                 get: { errorMessage != nil },
                 set: { if !$0 { errorMessage = nil } }
@@ -154,6 +185,15 @@ struct ChatView: View {
             }
             context.insert(CoachChatMessage(workoutUUID: workout.uuid, role: .assistant, content: assistantText))
             input = ""
+
+            if speakCoachReplies {
+                // Speak the coach's own words only — the appended edit
+                // confirmation is a UI marker, not something to read out.
+                // Not awaited, so the reply is readable and the next message
+                // typeable while it's still talking.
+                let spoken = reply.reply
+                Task { await voice.speak(spoken) }
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

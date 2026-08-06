@@ -6,6 +6,7 @@ struct SettingsView: View {
 
     @AppStorage("llmProvider") private var providerRaw = LLMProvider.deepseek.rawValue
     @AppStorage("llmModelOverride") private var modelOverride = ""
+    @AppStorage("speakCoachReplies") private var speakCoachReplies = true
 
     @State private var apiKey = KeychainStore.read(KeychainStore.apiKeyAccount)
     @State private var keySaved = false
@@ -70,6 +71,26 @@ struct SettingsView: View {
                     Text("The key is stored securely in the iOS Keychain and only sent to \(provider.displayName) when generating a workout.")
                         .font(.caption)
                         .foregroundStyle(Color.appTextSecondary)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionHeader(title: "Voice")
+                    Card {
+                        Toggle(isOn: $speakCoachReplies) {
+                            Text("Speak the coach's replies")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.appTextPrimary)
+                        }
+                        .tint(Color.appAccent)
+                        .accessibilityIdentifier("speakRepliesToggle")
+                    }
+                    Text(
+                        SystemSpeechEngine.hasOnlyCompactVoice
+                            ? "Only the basic system voice is installed, which sounds robotic. iOS Settings → Accessibility → Spoken Content → Voices has much better ones to download."
+                            : "The coach reads its answers aloud in chat. Voice check-ins always speak, whatever this is set to."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(Color.appTextSecondary)
                 }
 
                 NavigationLink {
