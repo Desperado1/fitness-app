@@ -138,5 +138,6 @@ FlowFitTests/                    # Parsers, prompts, validator, wiki budgets
 - [ ] Optional HealthKit export
 - [x] Conversational check-in: the coach fills energy/venue/time/style from what you tell it
 - [x] Voice mode: hands-free check-in (speech in, spoken replies), dictation and spoken answers in chat
+- [ ] Voice mode phase 3: a voice-first landing page and a coach that feels alive rather than dictated to — specified in [docs/VOICE_MODE_SPEC.md](docs/VOICE_MODE_SPEC.md)
 - [ ] Voice during the workout: "next exercise", "I did 8 not 10" mid-set
 - [ ] Exercise demos: show how to perform each movement (form cues, image or short clip)
