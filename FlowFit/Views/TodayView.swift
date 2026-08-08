@@ -1,6 +1,13 @@
 import SwiftUI
 import SwiftData
 
+/// How the client wants to do today's check-in. Persisted, because it is a
+/// standing preference about how someone likes to be talked to, not a
+/// per-day choice.
+enum CheckInMode: String {
+    case voice, form
+}
+
 struct TodayView: View {
     let profile: UserProfile
 
@@ -10,16 +17,15 @@ struct TodayView: View {
     @Query(sort: \TrainingBlock.createdAt, order: .reverse) private var blocks: [TrainingBlock]
 
     @AppStorage("scribeUpdateFailed") private var scribeUpdateFailed = false
+    @AppStorage("checkInMode") private var checkInMode = CheckInMode.voice
 
-    @State private var checkIn = DailyCheckIn()
+    /// One conversation behind both check-in surfaces, so talking and
+    /// tapping are two ways into the same state — switch mode mid-check-in
+    /// and everything answered so far is still there.
+    @StateObject private var conversation = IntakeConversation()
+
     @State private var isGenerating = false
     @State private var errorMessage: String?
-    /// Which check-in fields have actually been established — by the
-    /// conversation or by hand. Every field has a usable default, so the
-    /// values alone can't tell an answer from an untouched default, and the
-    /// intake coach needs that difference to know what's left to ask.
-    @State private var knownFields: Set<CheckInField> = []
-    @State private var intakeTranscript: [IntakeTurn] = []
     @State private var showingIntake = false
     /// Anchor for "today". The current date is not a reactive dependency, so
     /// without this the view would keep showing yesterday's workout after the
@@ -41,7 +47,7 @@ struct TodayView: View {
                 if let workout = todaysWorkout {
                     WorkoutDetailView(workout: workout, profile: profile, canRegenerate: true)
                 } else {
-                    checkInScreen
+                    checkInContainer
                         .toolbar(.hidden, for: .navigationBar)
                 }
             }
@@ -55,16 +61,7 @@ struct TodayView: View {
             }
             .sheet(isPresented: $showingIntake) {
                 CheckInChatView(
-                    profile: profile,
-                    session: activeBlock?.nextPendingSession,
-                    // The intake coach only needs who the client is and where
-                    // the week stands; progressions and the log would cost
-                    // latency on every turn for nothing.
-                    wikiContext: WikiStore(context: context)
-                        .contextString(slugs: [.profile, .currentBlock]),
-                    checkIn: $checkIn,
-                    knownFields: $knownFields,
-                    transcript: $intakeTranscript,
+                    conversation: conversation,
                     onGenerate: { Task { await generate() } }
                 )
             }
@@ -78,6 +75,53 @@ struct TodayView: View {
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             today = Date()
         }
+    }
+
+    /// The check-in, either way round. The toggle sits outside the swapped
+    /// content so it is reachable without scrolling in both modes.
+    private var checkInContainer: some View {
+        VStack(spacing: 0) {
+            PillToggle(selection: $checkInMode, options: [
+                (CheckInMode.voice, "Voice", "waveform"),
+                (CheckInMode.form, "Form", "slider.horizontal.3"),
+            ])
+            .padding(.horizontal, Theme.screenPadding)
+            .padding(.top, 8)
+
+            switch checkInMode {
+            case .voice:
+                VoiceCheckInView(
+                    conversation: conversation,
+                    isGenerating: isGenerating,
+                    onGenerate: { Task { await generate() } }
+                )
+            case .form:
+                checkInScreen
+            }
+        }
+        .background(Color.appBackground.ignoresSafeArea())
+        .onAppear { configureConversation() }
+        // The greeting names the planned session, so a week planned in
+        // another tab has to reach the conversation before it opens.
+        .onChange(of: activeBlock?.nextPendingSession) { configureConversation() }
+    }
+
+    /// Cheap and idempotent: hands the conversation today's plan and a way
+    /// to read the wiki when it actually needs it.
+    private func configureConversation() {
+        // Bound as a local so the stored closure captures the context alone.
+        // Capturing `self` would pull the whole view — including the
+        // @StateObject wrapper — into a closure the conversation holds.
+        let modelContext = context
+        WikiStore(context: modelContext).ensureSeeded(profile: profile)
+        conversation.configure(
+            profile: profile,
+            session: activeBlock?.nextPendingSession,
+            // The intake coach only needs who the client is and where the
+            // week stands; progressions and the log would cost latency on
+            // every turn for nothing.
+            wikiContext: { WikiStore(context: modelContext).contextString(slugs: [.profile, .currentBlock]) }
+        )
     }
 
     private var checkInScreen: some View {
@@ -128,16 +172,18 @@ struct TodayView: View {
                 }
             }
 
-            // The conversational path. It writes into the very same check-in
-            // the form below binds to, so talking and tapping are two ways
-            // into one state — and a misheard answer is fixed with a tap.
+            // The typed conversational path. It writes into the very same
+            // check-in the form below binds to — and into the same one the
+            // voice screen fills — so every route is one state, and a
+            // misheard answer is fixed with a tap.
             VStack(spacing: 12) {
                 Button {
-                    WikiStore(context: context).ensureSeeded(profile: profile)
+                    configureConversation()
+                    conversation.startIfNeeded()
                     showingIntake = true
                 } label: {
                     Label(
-                        intakeTranscript.isEmpty ? "Talk it through" : "Continue with your coach",
+                        conversation.transcript.isEmpty ? "Talk it through" : "Continue with your coach",
                         systemImage: "bubble.left.and.text.bubble.right"
                     )
                 }
@@ -162,13 +208,13 @@ struct TodayView: View {
                             // Marked known explicitly rather than via onChange:
                             // "steady" is the default, so tapping it first
                             // would otherwise register as no answer at all.
-                            knownFields.insert(.energy)
-                            withAnimation(.easeOut(duration: 0.15)) { checkIn.energy = level }
+                            conversation.knownFields.insert(.energy)
+                            withAnimation(.easeOut(duration: 0.15)) { conversation.checkIn.energy = level }
                         } label: {
                             OptionCard(
                                 emoji: level.emoji,
                                 label: level.displayName,
-                                selected: checkIn.energy == level
+                                selected: conversation.checkIn.energy == level
                             )
                         }
                         .buttonStyle(.plain)
@@ -176,12 +222,12 @@ struct TodayView: View {
                         .accessibilityIdentifier("energy-\(level.rawValue)")
                     }
                 }
-                .sensoryFeedback(.selection, trigger: checkIn.energy)
+                .sensoryFeedback(.selection, trigger: conversation.checkIn.energy)
             }
 
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader(title: "Where are you training?")
-                PillToggle(selection: $checkIn.venue, options: [
+                PillToggle(selection: $conversation.checkIn.venue, options: [
                     (Venue.home, "Home", "house"),
                     (Venue.gym, "Gym", "building.2"),
                 ])
@@ -190,16 +236,16 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader(title: "How you feel")
                 Card {
-                    LabeledField(label: "Mood", placeholder: "How are you feeling? (optional)", text: $checkIn.moodText)
+                    LabeledField(label: "Mood", placeholder: "How are you feeling? (optional)", text: $conversation.checkIn.moodText)
                     Rectangle().fill(Color.appBorder).frame(height: 1)
-                    LabeledField(label: "Soreness or pain", placeholder: "Anything sore or hurting? (optional)", text: $checkIn.sorenessOrPain)
+                    LabeledField(label: "Soreness or pain", placeholder: "Anything sore or hurting? (optional)", text: $conversation.checkIn.sorenessOrPain)
                 }
             }
 
             VStack(alignment: .leading, spacing: 10) {
                 SectionHeader(title: "Time available")
                 Card {
-                    CapsuleStepper(value: $checkIn.minutesAvailable, range: 10...120)
+                    CapsuleStepper(value: $conversation.checkIn.minutesAvailable, range: 10...120)
                 }
             }
 
@@ -208,27 +254,27 @@ struct TodayView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         Button {
-                            knownFields.insert(.style)
-                            withAnimation(.easeOut(duration: 0.15)) { checkIn.preferredStyle = nil }
+                            conversation.knownFields.insert(.style)
+                            withAnimation(.easeOut(duration: 0.15)) { conversation.checkIn.preferredStyle = nil }
                         } label: {
-                            Chip(label: "Coach's choice", systemImage: "sparkles", selected: checkIn.preferredStyle == nil)
+                            Chip(label: "Coach's choice", systemImage: "sparkles", selected: conversation.checkIn.preferredStyle == nil)
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("styleChip-coach")
 
                         ForEach(profile.allowedStyles) { style in
                             Button {
-                                knownFields.insert(.style)
-                                withAnimation(.easeOut(duration: 0.15)) { checkIn.preferredStyle = style }
+                                conversation.knownFields.insert(.style)
+                                withAnimation(.easeOut(duration: 0.15)) { conversation.checkIn.preferredStyle = style }
                             } label: {
-                                Chip(label: style.displayName, systemImage: style.symbol, selected: checkIn.preferredStyle == style)
+                                Chip(label: style.displayName, systemImage: style.symbol, selected: conversation.checkIn.preferredStyle == style)
                             }
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("styleChip-\(style.rawValue)")
                         }
                     }
                 }
-                .sensoryFeedback(.selection, trigger: checkIn.preferredStyle)
+                .sensoryFeedback(.selection, trigger: conversation.checkIn.preferredStyle)
             }
 
             Button {
@@ -251,13 +297,13 @@ struct TodayView: View {
         }
         // Editing by hand counts as answering, so a later conversation
         // doesn't ask again for something already filled in on the form.
-        .onChange(of: checkIn.venue) { knownFields.insert(.venue) }
-        .onChange(of: checkIn.minutesAvailable) { knownFields.insert(.minutes) }
-        .onChange(of: checkIn.moodText) { _, text in
-            if !text.isEmpty { knownFields.insert(.mood) }
+        .onChange(of: conversation.checkIn.venue) { conversation.knownFields.insert(.venue) }
+        .onChange(of: conversation.checkIn.minutesAvailable) { conversation.knownFields.insert(.minutes) }
+        .onChange(of: conversation.checkIn.moodText) { _, text in
+            if !text.isEmpty { conversation.knownFields.insert(.mood) }
         }
-        .onChange(of: checkIn.sorenessOrPain) { _, text in
-            if !text.isEmpty { knownFields.insert(.soreness) }
+        .onChange(of: conversation.checkIn.sorenessOrPain) { _, text in
+            if !text.isEmpty { conversation.knownFields.insert(.soreness) }
         }
     }
 
@@ -274,12 +320,12 @@ struct TodayView: View {
                 profile: profile,
                 wikiContext: wiki.contextString(),
                 session: session,
-                checkIn: checkIn
+                checkIn: conversation.checkIn
             )
             let workout = Workout(
                 date: .now,
                 generated: generated,
-                checkIn: checkIn,
+                checkIn: conversation.checkIn,
                 blockSessionIndex: session?.index
             )
             context.insert(workout)
@@ -287,14 +333,14 @@ struct TodayView: View {
             // Carry the check-in conversation into the workout's thread now
             // that there's a UUID to key it by, so the chat coach picks up
             // mid-conversation instead of starting cold.
-            for turn in intakeTranscript {
+            for turn in conversation.transcript {
                 context.insert(CoachChatMessage(
                     workoutUUID: workout.uuid,
                     role: turn.role,
                     content: turn.content
                 ))
             }
-            intakeTranscript.removeAll()
+            conversation.clearTranscript()
         } catch {
             errorMessage = error.localizedDescription
         }

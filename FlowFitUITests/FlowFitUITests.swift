@@ -38,6 +38,15 @@ final class FlowFitUITests: XCTestCase {
         tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
+    /// Taps a segment of a PillToggle by coordinate. Same reason as tabs:
+    /// right after a sheet dismissal, plain .tap() can fail in the AX
+    /// scroll-to-visible machinery.
+    private func tapPill(_ label: String) {
+        let pill = app.buttons["pill-\(label)"].firstMatch
+        XCTAssertTrue(pill.waitForExistence(timeout: 10), "Pill \(label) should exist")
+        pill.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+    }
+
     /// Taps an element after making sure it's on screen, scrolling a
     /// bounded number of times if needed (Form content can be off-screen).
     private func scrollToAndTap(_ element: XCUIElement, attempts: Int = 10) {
@@ -87,10 +96,22 @@ final class FlowFitUITests: XCTestCase {
         XCTAssertTrue(firstSession.waitForExistence(timeout: 20), "Planned sessions should appear")
         snap("04-plan-week")
 
-        // MARK: Conversational check-in — the coach fills the form by talking
+        // MARK: The check-in landing page is the orb
         tapTab("Today")
-        scrollToAndTap(app.buttons["startIntake"])
+        let orb = app.descendants(matching: .any)["voiceOrb"].firstMatch
+        XCTAssertTrue(orb.waitForExistence(timeout: 15), "Voice is the default way in")
+        snap("04b-voice-landing")
 
+        // MARK: Form mode — the same check-in, tapped instead of spoken
+        tapPill("Form")
+        XCTAssertTrue(
+            app.buttons["startIntake"].waitForExistence(timeout: 10),
+            "The toggle should swap in the form"
+        )
+        snap("04c-form-mode")
+
+        // The typed conversation, still reachable from form mode.
+        scrollToAndTap(app.buttons["startIntake"])
         let intakeInput = app.descendants(matching: .any)["intakeInput"].firstMatch
         XCTAssertTrue(intakeInput.waitForExistence(timeout: 15), "Check-in conversation should open")
         // The greeting is written on-device, so it's there immediately rather
@@ -100,16 +121,19 @@ final class FlowFitUITests: XCTestCase {
                 .firstMatch.waitForExistence(timeout: 10),
             "The coach should open the conversation itself"
         )
-        snap("04b-checkin-conversation")
+        snap("04d-checkin-conversation")
+        app.buttons["intakeAdjustByHand"].firstMatch.tap()
 
         // MARK: Hands-free voice mode
         // -mock-voice swaps in scripted speech, so CI drives the whole loop:
         // the coach speaks, "hears" an answer, and moves on with no taps.
-        app.descendants(matching: .any)["intakeMic"].firstMatch.tap()
-
-        let orb = app.descendants(matching: .any)["voiceOrb"].firstMatch
-        XCTAssertTrue(orb.waitForExistence(timeout: 15), "Voice mode should show the orb")
-        snap("04c-voice-mode")
+        // Switching back must not lose the conversation started in form mode.
+        tapPill("Voice")
+        XCTAssertTrue(orb.waitForExistence(timeout: 10), "The orb should come back")
+        let startTalking = app.buttons["voiceStartStop"].firstMatch
+        XCTAssertTrue(startTalking.waitForExistence(timeout: 10))
+        startTalking.tap()
+        snap("04e-voice-mode")
 
         // The soreness chip only renders once that field is actually known,
         // so its appearance proves spoken words reached the check-in.
@@ -117,9 +141,9 @@ final class FlowFitUITests: XCTestCase {
             app.descendants(matching: .any)["intakeChip-soreness"].firstMatch.waitForExistence(timeout: 30),
             "Chips should fill in from what the coach heard"
         )
-        snap("04d-voice-chips-filled")
+        snap("04f-voice-chips-filled")
 
-        // Second scripted utterance completes the check-in; voice mode then
+        // The next scripted utterance completes the check-in; voice mode then
         // builds the workout itself rather than asking for a tap.
 
         let workoutTitle = app.staticTexts["Steady Strength"]

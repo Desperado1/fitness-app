@@ -1,9 +1,15 @@
 # Voice Mode, Phase 3: a coach that talks back
 
-Status: **specified, not started.** Written to be picked up cold in a new
-session — everything needed to start coding is here.
+Status: **built.** Everything in §3's "in" list shipped on
+`claude/voice-mode-spec-1zf1yw`; §9's deferred list is untouched and still
+the right next thing to argue about. The rest of this document is left as
+written — it is the reasoning behind the code, not a to-do list, and §2 in
+particular should stay settled.
 
-Branch: `claude/backlog-prioritization-4kthgx`.
+Two things landed differently from the plan, both noted in place below:
+`KnownFieldsStrip` became its own file rather than living inside a view
+(§6), and `VoiceSession` caps consecutive empty turns rather than re-arming
+without limit (§4 A4).
 
 ---
 
@@ -174,6 +180,11 @@ an empty utterance (`VoiceSession.swift:196-199`) — silently, which looks like
 the app died. Re-arm listening with the same handler instead, and surface a
 "didn't catch that" hint.
 
+*As built:* re-arming is capped at three consecutive empty turns. A recognizer
+returning empty finals instantly would otherwise spin, and by the third one
+another turn is not what's wrong. Past the cap the orb goes idle with "I'm not
+hearing anything — tap to try again", and a tap resumes the loop.
+
 ### A5. Haptics
 
 `.sensoryFeedback(.success, trigger:)` when a turn is captured and when a
@@ -281,6 +292,9 @@ rather than just within the sheet.
 - `FlowFit/Services/ThinkingFiller.swift`
 - `FlowFit/Services/IntakeConversation.swift`
 - `FlowFit/Views/VoiceCheckInView.swift`
+- `FlowFit/Views/KnownFieldsStrip.swift` — *as built:* the shared chip strip
+  became its own file rather than staying inside one of the two views that
+  now draw it
 
 **Modified**
 - `FlowFit/Services/VoiceSession.swift` — `level`, `fillThinkingPause`, `interruptSpeaking`, empty-utterance re-arm
