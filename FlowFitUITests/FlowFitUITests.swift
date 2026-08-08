@@ -105,8 +105,8 @@ final class FlowFitUITests: XCTestCase {
         // MARK: Form mode — the same check-in, tapped instead of spoken
         tapPill("Form")
         XCTAssertTrue(
-            app.buttons["startIntake"].waitForExistence(timeout: 10),
-            "The toggle should swap in the form"
+            orb.waitForNonExistence(timeout: 10),
+            "The toggle should swap the orb out for the form"
         )
         snap("04c-form-mode")
 

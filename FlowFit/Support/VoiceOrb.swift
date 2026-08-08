@@ -37,10 +37,13 @@ struct VoiceOrb: View {
     }
 
     private var halo: some View {
-        TimelineView(.animation) { context in
+        // 30fps rather than display rate: blur is the expensive part and
+        // nobody can see the difference on a drifting blob. Paused at idle,
+        // which is both the honest state (nothing is happening yet, exactly
+        // like Siri before you tap) and what keeps a redraw-every-frame view
+        // from sitting under the UI tests' wait-for-idle.
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: phase == .idle)) { context in
             let time = CGFloat(context.date.timeIntervalSinceReferenceDate)
-            // Idle still breathes, faintly: a frozen orb reads as a hung
-            // app, and this is the only thing on the screen.
             let energy: CGFloat = phase == .idle ? 0.12 : 0.3 + CGFloat(level) * 0.7
             let drift = size * 0.1 * (0.4 + energy)
 
