@@ -2,10 +2,12 @@ import Foundation
 
 /// Where the voice loop currently is. Drives the whole voice UI from one
 /// value, so the orb, the transcript and the controls can never disagree.
-enum VoicePhase {
+enum VoicePhase: Equatable {
     case idle
     case listening
-    /// Waiting on the coach — the LLM call is in flight.
+    /// Waiting on the coach — the LLM call is in flight. The coach may well
+    /// be saying a filler line during this phase; it is still thinking, and
+    /// the orb should not claim to be delivering a reply that hasn't landed.
     case thinking
     case speaking
 }
@@ -16,6 +18,12 @@ enum VoicePhase {
 /// simulator. CI drives the whole flow with scripted speech instead, which
 /// is the only way this feature stays visible to the Mac-less workflow.
 protocol SpeechEngine: AnyObject {
+    /// Live loudness, 0–1, of whichever side is currently making sound —
+    /// the client while transcribing, the coach while speaking. Decorative:
+    /// it drives the orb and nothing else, so an engine is free to
+    /// approximate it.
+    var onLevel: ((Float) -> Void)? { get set }
+
     /// True once the microphone and speech recognition are both permitted.
     func requestPermissions() async -> Bool
 
@@ -49,6 +57,12 @@ final class VoiceSession: ObservableObject {
     @Published private(set) var phase: VoicePhase = .idle
     /// What the recognizer has heard so far this turn, updated live.
     @Published private(set) var partialTranscript = ""
+    /// Loudness of whoever is currently talking, 0–1, smoothed. The orb
+    /// deforms to this; it is the main signal that the loop is alive.
+    @Published private(set) var level: Double = 0
+    /// A short line for the client when a turn produced nothing at all —
+    /// silence with no explanation looks like the app died.
+    @Published private(set) var notice: String?
     @Published var errorMessage: String?
     /// Set when the client has refused the mic or speech permission — the
     /// caller falls back to typing rather than nagging.
@@ -59,15 +73,31 @@ final class VoiceSession: ObservableObject {
     /// every exchange drag.
     static let silenceInterval: TimeInterval = 1.0
 
+    /// Weight of each new sample in the level EMA. Low enough that the orb
+    /// glides through the gaps between syllables rather than strobing.
+    private static let levelSmoothing = 0.4
+
     private let engine: any SpeechEngine
     private var silenceTimer: Timer?
     private var onUtterance: ((String) -> Void)?
     /// Guards against the recognizer's final result and the silence timer
     /// both submitting the same turn.
     private var hasSubmittedThisTurn = false
+    private var filler = ThinkingFiller()
+    /// Empty turns re-arm the microphone rather than dying quietly, but not
+    /// forever: a recognizer that keeps returning nothing instantly would
+    /// spin, and at that point something is wrong that another turn won't fix.
+    private var consecutiveEmptyTurns = 0
+    private static let maxConsecutiveEmptyTurns = 3
 
     init(engine: (any SpeechEngine)? = nil) {
-        self.engine = engine ?? makeSpeechEngine()
+        let engine = engine ?? makeSpeechEngine()
+        self.engine = engine
+        // Levels arrive from the audio thread, so they hop back like every
+        // other engine callback.
+        engine.onLevel = { [weak self] value in
+            Task { @MainActor in self?.applyLevel(value) }
+        }
     }
 
     var isListening: Bool {
@@ -88,12 +118,39 @@ final class VoiceSession: ObservableObject {
     func speak(_ text: String) async {
         guard !text.isEmpty else { return }
         phase = .speaking
+        await rawSpeak(text)
+        if case .speaking = phase { phase = .idle }
+    }
+
+    /// Says a short filler line *over* the model round trip, so the wait
+    /// sounds like thought instead of lag. The caller must already have
+    /// started the coach's task — this is meant to overlap it, not precede
+    /// it, or it just adds latency of its own.
+    ///
+    /// Phase deliberately stays `.thinking`: the answer genuinely hasn't
+    /// arrived, and the orb shouldn't imply otherwise.
+    func fillThinkingPause() async {
+        phase = .thinking
+        await rawSpeak(filler.next())
+    }
+
+    /// Cuts the coach off mid-sentence. The synthesizer's cancel callback
+    /// resolves the continuation inside `rawSpeak`, so whoever is awaiting
+    /// `speak` simply walks on to the next step of the loop.
+    func interruptSpeaking() {
+        engine.stopSpeaking()
+    }
+
+    /// Speaks without touching `phase`, so callers decide what the orb says
+    /// they're doing.
+    private func rawSpeak(_ text: String) async {
+        guard !text.isEmpty else { return }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             engine.speak(text) {
                 continuation.resume()
             }
         }
-        if case .speaking = phase { phase = .idle }
+        resetLevel()
     }
 
     /// Starts a listening turn. `handler` fires once, with the completed
@@ -125,6 +182,7 @@ final class VoiceSession: ObservableObject {
         silenceTimer?.invalidate()
         silenceTimer = nil
         engine.stopTranscribing()
+        resetLevel()
         if case .listening = phase { phase = .idle }
     }
 
@@ -137,15 +195,14 @@ final class VoiceSession: ObservableObject {
         engine.stopTranscribing()
         engine.stopSpeaking()
         partialTranscript = ""
+        notice = nil
+        consecutiveEmptyTurns = 0
+        resetLevel()
         phase = .idle
     }
 
-    /// Called by the owner once the coach's answer is on its way, so the
-    /// orb shows thinking rather than an idle mic.
-    func markThinking() {
-        phase = .thinking
-    }
-
+    /// Dictation ends the turn without a coach behind it, so the caller
+    /// puts the orb back itself (see `ChatView`).
     func markIdle() {
         phase = .idle
     }
@@ -154,6 +211,10 @@ final class VoiceSession: ObservableObject {
 
     private func handlePartial(_ text: String) {
         guard !hasSubmittedThisTurn else { return }
+        // Words are landing again, so any "didn't catch that" has served
+        // its purpose — and the microphone is demonstrably working.
+        notice = nil
+        consecutiveEmptyTurns = 0
         partialTranscript = text
         restartSilenceTimer()
     }
@@ -168,8 +229,17 @@ final class VoiceSession: ObservableObject {
         silenceTimer?.invalidate()
         silenceTimer = nil
         engine.stopTranscribing()
+        resetLevel()
         errorMessage = message
         phase = .idle
+    }
+
+    private func applyLevel(_ value: Float) {
+        level = level * (1 - Self.levelSmoothing) + Double(value) * Self.levelSmoothing
+    }
+
+    private func resetLevel() {
+        level = 0
     }
 
     /// A pause resets on every new word, so the turn ends only after the
@@ -191,12 +261,28 @@ final class VoiceSession: ObservableObject {
         silenceTimer?.invalidate()
         silenceTimer = nil
         engine.stopTranscribing()
+        resetLevel()
 
         let text = partialTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
-            phase = .idle
+            // Nothing was heard. Silence must never reach the coach as if
+            // the client had spoken — but dropping to idle strands them in
+            // a dead loop that looks like a crash, so the turn re-arms with
+            // the same handler and says why.
+            consecutiveEmptyTurns += 1
+            guard let handler = onUtterance,
+                  consecutiveEmptyTurns < Self.maxConsecutiveEmptyTurns
+            else {
+                notice = "I'm not hearing anything — tap to try again."
+                phase = .idle
+                return
+            }
+            listen(handler)
+            notice = "Didn't catch that — have another go."
             return
         }
+        consecutiveEmptyTurns = 0
+        notice = nil
         phase = .thinking
         let handler = onUtterance
         onUtterance = nil

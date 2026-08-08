@@ -5,6 +5,7 @@ import XCTest
 /// Kept at file scope so it stays free of the test case's actor isolation,
 /// exactly like the real engines.
 private final class TestSpeechEngine: SpeechEngine {
+    var onLevel: ((Float) -> Void)?
     var onPartial: ((String) -> Void)?
     var onFinal: ((String) -> Void)?
     var onError: ((String) -> Void)?
@@ -13,6 +14,12 @@ private final class TestSpeechEngine: SpeechEngine {
     var stopTranscribingCount = 0
     var spoken: [String] = []
     var permissionsGranted = true
+
+    /// Off by default so most tests can `await speak` without ceremony;
+    /// switched on to test what happens *during* an utterance.
+    var completesSpeechImmediately = true
+    var stopSpeakingCount = 0
+    private var pendingSpeechCompletion: (() -> Void)?
 
     func requestPermissions() async -> Bool { permissionsGranted }
 
@@ -34,10 +41,21 @@ private final class TestSpeechEngine: SpeechEngine {
 
     func speak(_ text: String, completion: @escaping () -> Void) {
         spoken.append(text)
-        completion()
+        if completesSpeechImmediately {
+            completion()
+        } else {
+            pendingSpeechCompletion = completion
+        }
     }
 
-    func stopSpeaking() {}
+    /// Mirrors the real synthesizer, whose `didCancel` runs the same
+    /// completion `didFinish` would have.
+    func stopSpeaking() {
+        stopSpeakingCount += 1
+        let completion = pendingSpeechCompletion
+        pendingSpeechCompletion = nil
+        completion?()
+    }
 }
 
 /// Turn detection is the whole feel of voice mode — when a pause counts as
@@ -97,7 +115,7 @@ final class VoiceSessionTests: XCTestCase {
         XCTAssertEqual(submissions, 1)
     }
 
-    func testAnEmptyUtteranceIsNeverSentToTheCoach() async {
+    func testAnEmptyUtteranceIsNeverSentToTheCoachAndReArmsListening() async {
         let (session, engine) = makeSession()
         var submitted: String?
         session.listen { submitted = $0 }
@@ -108,7 +126,29 @@ final class VoiceSessionTests: XCTestCase {
         await settle()
 
         XCTAssertNil(submitted)
-        XCTAssertFalse(session.isListening)
+        // ...but the loop must not quietly die either: going idle here looks
+        // exactly like a crash to someone who isn't holding the phone.
+        XCTAssertTrue(session.isListening, "An empty turn should hand the microphone straight back")
+        XCTAssertTrue(engine.isTranscribing)
+        XCTAssertNotNil(session.notice, "The client needs to know why nothing happened")
+
+        // And the re-armed turn still works.
+        engine.onFinal?("at home")
+        await settle()
+        XCTAssertEqual(submitted, "at home")
+    }
+
+    func testSpeakingAgainAfterAnEmptyTurnClearsTheNotice() async {
+        let (session, engine) = makeSession()
+        session.listen { _ in }
+        engine.onFinal?("   ")
+        await settle()
+        XCTAssertNotNil(session.notice)
+
+        engine.onPartial?("at the gym")
+        await settle()
+
+        XCTAssertNil(session.notice, "Words are landing again — the hint has done its job")
     }
 
     func testErrorsEndTheTurnAndSurfaceAMessage() async {
@@ -162,6 +202,74 @@ final class VoiceSessionTests: XCTestCase {
 
         XCTAssertEqual(engine.spoken, ["How are you feeling?"])
         XCTAssertFalse(session.isListening)
+    }
+
+    // MARK: - Aliveness
+
+    func testLevelsFollowTheEngineButAreSmoothed() async {
+        let (session, engine) = makeSession()
+
+        // A step input must not teleport: the orb glides through the gaps
+        // between syllables instead of strobing.
+        engine.onLevel?(1)
+        await settle()
+        let firstStep = session.level
+        XCTAssertGreaterThan(firstStep, 0)
+        XCTAssertLessThan(firstStep, 1, "A single loud buffer shouldn't snap the orb to full")
+
+        engine.onLevel?(1)
+        await settle()
+        XCTAssertGreaterThan(session.level, firstStep, "Sustained sound should keep climbing")
+        XCTAssertLessThanOrEqual(session.level, 1)
+    }
+
+    func testLevelReturnsToZeroWhenTheLoopStops() async {
+        let (session, engine) = makeSession()
+        session.listen { _ in }
+        engine.onLevel?(1)
+        await settle()
+        XCTAssertGreaterThan(session.level, 0)
+
+        session.stop()
+
+        XCTAssertEqual(session.level, 0, "A stopped orb must not keep pulsing to stale audio")
+    }
+
+    func testInterruptingSpeechResolvesTheSpeakCall() async {
+        let (session, engine) = makeSession()
+        engine.completesSpeechImmediately = false
+
+        // The loop awaits `speak`; being unable to cut in is exactly the
+        // trapped-in-a-monologue feeling voice mode exists to avoid.
+        let speaking = Task { await session.speak("Here's why we're squatting today…") }
+        await settle()
+        session.interruptSpeaking()
+        await speaking.value
+
+        XCTAssertEqual(engine.stopSpeakingCount, 1)
+        XCTAssertEqual(session.phase, .idle, "Cutting the coach off hands the turn back")
+    }
+
+    func testThinkingFillerSpeaksWithoutClaimingToHaveAnswered() async {
+        let (session, engine) = makeSession()
+
+        await session.fillThinkingPause()
+
+        XCTAssertEqual(engine.spoken.count, 1)
+        XCTAssertTrue(ThinkingFiller.phrases.contains(engine.spoken[0]))
+        XCTAssertEqual(session.phase, .thinking, "The reply hasn't landed — the orb must not say it has")
+    }
+
+    func testThinkingFillerNeverRepeatsItself() {
+        var filler = ThinkingFiller()
+        var previous: String?
+
+        for _ in 0..<20 {
+            let phrase = filler.next()
+            XCTAssertTrue(ThinkingFiller.phrases.contains(phrase))
+            XCTAssertNotEqual(phrase, previous, "A phrase heard twice running is the tell that it's canned")
+            previous = phrase
+        }
     }
 
     func testTheScriptedEngineWalksItsUtterancesInOrder() async {

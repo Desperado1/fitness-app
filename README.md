@@ -6,7 +6,7 @@ A minimalist iOS workout app with an AI coach. No subscriptions, no single-disci
 
 1. **One-time profile** — goals, experience, home + gym equipment, health context (e.g. postpartum recovery, PCOD, thyroid), and hard limits. Stored on-device with SwiftData.
 2. **Plan my week** — the coach designs a weekly training block (sessions with focus, style, exercises, target weights) that carries progression from week to week.
-3. **Daily check-in** — energy, mood, soreness, home or gym, minutes available. Tap it in, or just **talk it through** — by typing or out loud, hands-free: the coach asks how you're doing and fills the form from your answers, so a check-in is a short conversation rather than six controls. Either way it *modulates* today's planned session to fit: low energy shrinks it, no gym swaps the equipment, a rough week turns it into recovery. Structure holds the skeleton; mood turns the dial.
+3. **Daily check-in** — energy, mood, soreness, home or gym, minutes available. The day opens on an **orb, not a form**: tap once and the coach talks you through it hands-free, an amplitude-reactive orb tracking whoever is speaking and the fields visibly landing as chips as it understands them. A toggle at the top switches to the tap-it-in form (or the typed conversation) at any point, mid-check-in, without losing an answer — talking and tapping are two ways into one state. Either way it *modulates* today's planned session to fit: low energy shrinks it, no gym swaps the equipment, a rough week turns it into recovery. Structure holds the skeleton; mood turns the dial.
 4. **Do it, log only what changed** — every exercise defaults to "done as prescribed"; tap to adjust actual sets/reps/weight or skip. Talk back anytime: a per-workout chat where the coach explains choices and applies edits ("my wrists hurt, swap the push-ups").
 5. **Feedback** — a 1–5 "how did it feel" rating plus a note. This, with your actuals, drives the next session and the next week.
 
@@ -112,13 +112,19 @@ FlowFit/
 │   ├── CoachService.swift        # Six roles: prompts + parsing
 │   ├── WikiSchema.swift          # Schema layer: pages, budgets, conventions
 │   ├── WikiStore.swift           # Wiki seeding, context, updates, rollback
+│   ├── IntakeConversation.swift  # One check-in, shared by the voice and typed surfaces
+│   ├── VoiceSession.swift        # The hands-free loop: turn detection, phases, levels
+│   ├── SystemSpeechEngine.swift  # Real speech I/O; ScriptedSpeechEngine is its CI stand-in
+│   ├── ThinkingFiller.swift      # What the coach says while the model is still answering
 │   └── WorkoutValidator.swift    # Code-level safety guardrails
 └── Views/
     ├── RootView.swift            # Onboarding vs. tabs
     ├── OnboardingView.swift      # First-run profile setup
     ├── PlanView.swift            # Weekly block + "Plan my week"
     ├── TodayView.swift           # Check-in → modulated workout
-    ├── CheckInChatView.swift     # Conversational check-in; fills the form by talking
+    ├── VoiceCheckInView.swift    # The voice-first landing page: orb, transcript, chips
+    ├── CheckInChatView.swift     # Typed conversational check-in; fills the form by talking
+    ├── KnownFieldsStrip.swift    # What the coach has understood so far, as chips
     ├── WorkoutDetailView.swift   # Per-exercise logging, complete/skip
     ├── ChatView.swift            # Talk back; coach applies edits
     ├── FeedbackSheet.swift       # Rating + note; fires the scribe
@@ -138,5 +144,6 @@ FlowFitTests/                    # Parsers, prompts, validator, wiki budgets
 - [ ] Optional HealthKit export
 - [x] Conversational check-in: the coach fills energy/venue/time/style from what you tell it
 - [x] Voice mode: hands-free check-in (speech in, spoken replies), dictation and spoken answers in chat
+- [x] Voice mode phase 3: a voice-first landing page and a coach that feels alive rather than dictated to — [docs/VOICE_MODE_SPEC.md](docs/VOICE_MODE_SPEC.md)
 - [ ] Voice during the workout: "next exercise", "I did 8 not 10" mid-set
 - [ ] Exercise demos: show how to perform each movement (form cues, image or short clip)

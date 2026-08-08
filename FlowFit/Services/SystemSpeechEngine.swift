@@ -9,6 +9,8 @@ import Speech
 /// stop it transcribing its own voice, so listening is paused during
 /// playback — barge-in is deliberately out of scope for now.
 final class SystemSpeechEngine: SpeechEngine {
+    var onLevel: ((Float) -> Void)?
+
     private let recognizer = SFSpeechRecognizer()
     private let audioEngine = AVAudioEngine()
     private let synthesizer = AVSpeechSynthesizer()
@@ -17,9 +19,20 @@ final class SystemSpeechEngine: SpeechEngine {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var isTapInstalled = false
+    /// Only every `levelStride`-th buffer produces a level. The tap fires at
+    /// ~43 Hz; a decorative animation signal does not need that many hops
+    /// onto the main actor.
+    private static let levelStride = 3
 
     init() {
         synthesizer.delegate = synthesizerDelegate
+        // Word boundaries are the only cheap handle on synthesizer output —
+        // there is no tap on it. Each word becomes a bump, which smoothed
+        // reads as a speech envelope. It is not true output amplitude, and
+        // it isn't pretending to be.
+        synthesizerDelegate.onWordBoundary = { [weak self] in
+            self?.onLevel?(Float.random(in: 0.45...0.9))
+        }
     }
 
     // MARK: - Permissions
@@ -62,8 +75,14 @@ final class SystemSpeechEngine: SpeechEngine {
             // Bound as a local so the audio thread appends without hopping
             // back to the main actor for every buffer.
             let input = audioEngine.inputNode
-            input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { buffer, _ in
+            // Counted in the closure rather than on the engine, so the
+            // audio thread owns it outright and shares nothing.
+            var bufferCount = 0
+            input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { [weak self] buffer, _ in
                 request.append(buffer)
+                bufferCount += 1
+                guard bufferCount % Self.levelStride == 0 else { return }
+                self?.reportLevel(of: buffer)
             }
             isTapInstalled = true
 
@@ -88,6 +107,25 @@ final class SystemSpeechEngine: SpeechEngine {
             stopTranscribing()
             onError(error.localizedDescription)
         }
+    }
+
+    /// RMS of one buffer, mapped to 0–1 through a log curve: raw speech RMS
+    /// is a few thousandths, so a linear mapping leaves the orb flat.
+    private func reportLevel(of buffer: AVAudioPCMBuffer) {
+        guard let onLevel, let samples = buffer.floatChannelData?[0] else { return }
+
+        let count = Int(buffer.frameLength)
+        guard count > 0 else { return }
+        var sum: Float = 0
+        for index in 0..<count {
+            let sample = samples[index]
+            sum += sample * sample
+        }
+        let rms = (sum / Float(count)).squareRoot()
+
+        // ~-50 dB → 0, 0 dB → 1.
+        let decibels = 20 * log10(max(rms, 1e-7))
+        onLevel(min(1, max(0, (decibels + 50) / 50)))
     }
 
     func stopTranscribing() {
@@ -184,6 +222,16 @@ private final class SpeechCompletionDelegate: NSObject, AVSpeechSynthesizerDeleg
     /// Cleared before firing, so a finish followed by a cancel can't resume
     /// the same continuation twice.
     var onFinish: (() -> Void)?
+    /// Fires once per spoken word — the stand-in for output amplitude.
+    var onWordBoundary: (() -> Void)?
+
+    func speechSynthesizer(
+        _ synthesizer: AVSpeechSynthesizer,
+        willSpeakRangeOfSpeechString characterRange: NSRange,
+        utterance: AVSpeechUtterance
+    ) {
+        onWordBoundary?()
+    }
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         finish()
